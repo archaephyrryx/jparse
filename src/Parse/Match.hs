@@ -1,22 +1,24 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UnboxedTuples #-}
 
-module Parse.Match (mapClass, parseMatch, ParseClass(..)) where
+module Parse.Match (mapClass, parseMatch, ParseClass) where
 
+import           Prelude hiding (fail)
 import           Control.Applicative ((<|>))
-import           Control.Monad (mzero, void, when)
-import qualified Data.ByteString.Base16 as H (encode)
+import           Control.Monad (mzero, void, when, MonadPlus(..))
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A
+import qualified Data.Attoparsec.ByteString.Char8 as A (stringCI)
+import           Data.Bits
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
 import           Data.Word (Word8)
-
-import           Data.Bits
+import qualified Data.ByteString.Base16 as H (encode)
 
 
 -- import GHC.Prim
@@ -25,6 +27,7 @@ import           Data.Bits
 import Parse.Read (skipToEndQ)
 
 
+type DeconBS = (Word8, [Word8])
 type UnconBS = (Word8, ByteString)
 -- | 4-hex digit bytestring to be matched case-insensitively
 type Quad = ByteString
@@ -52,94 +55,110 @@ data ParseClass = BSlash
                 | Control Word8  Quad
                 | Direct  Word8  Quad
                 | BMP    UnconBS Quad
-                | Surr   UnconBS QuadPair
+                | Surr   DeconBS QuadPair
                 deriving (Eq)
 
-_quad :: Quad -> A.Parser ()
-_quad = void . A.stringCI
+
+-- | abstraction for parser result
+
+type Res = Bool
+
+pass :: (Monad m) => m Res
+pass = return True
+{-# INLINE pass #-}
+
+mark :: (Monad m) => m a -> m Res
+mark = (True <$)
+{-# INLINE mark #-}
+
+fail :: (MonadPlus m) => m Res
+fail = return False
+{-# INLINE fail #-}
+
+_quad :: Quad -> A.Parser Res
+_quad = mark . A.stringCI
 {-# INLINE _quad #-}
 
 -- | match : attempt to match parser output against a single parse-class character directive
-_match :: ParseClass -> A.Parser ()
-_match BSlash        = _bslash
-_match VQuote        = _vquote
-_match FSlash        = _fslash
-_match (Direct  w q)  = _ascii w q
-_match (Control w q)  = _ctr w q
-_match (BMP  v q)     = _char v q
-_match (Surr v q)     = _surr v q
+_match :: ParseClass -> A.Parser Res
+_match !(BSlash)      = _bslash
+_match !(VQuote)      = _vquote
+_match !(FSlash)      = _fslash
+_match !(Direct  w q)  = _ascii w q
+_match !(Control w q)  = _ctr w q
+_match !(BMP  v q)     = _char v q
+_match !(Surr v q)     = _surr v q
 
 
 -- | parse every valid JSON-string internal encoding of a backslash character
-_bslash :: A.Parser ()
+_bslash :: A.Parser Res
 _bslash = A.anyWord8 >>= \case
             0x5c -> A.anyWord8 >>= \case
-                0x5c -> return () -- \\
-                0x75 -> void $ _quad "005c" -- \u005c
-                _    -> mzero
-            _    -> mzero
+                0x5c -> pass -- \\
+                0x75 -> _quad "005c" -- \u005c
+                _    -> fail
+            _    -> fail
 {-# INLINE _bslash #-}
 
 -- because 0022 is digit-only, A.string is slightly better than A.stringCI
-_vquote :: A.Parser ()
+_vquote :: A.Parser Res
 _vquote = A.anyWord8 >>= \case
             0x5c -> A.anyWord8 >>= \case
-                0x22 -> return () -- \"
-                0x75 -> void $ A.string "0022" -- \u0022
-                _    -> mzero
-            _    -> mzero
+                0x22 -> pass -- \"
+                0x75 -> mark $ A.string "0022" -- \u0022
+                _    -> fail
+            _    -> fail
 {-# INLINE _vquote #-}
 
-_fslash :: A.Parser ()
+_fslash :: A.Parser Res
 _fslash = A.anyWord8 >>= \case
-            0x2f -> return ()
+            0x2f -> pass
             0x5c -> A.anyWord8 >>= \case
-                0x2f -> return ()
+                0x2f -> pass
                 0x75 -> _quad "002f" -- \u002f
-                _    -> mzero
-            _    -> mzero
+                _    -> fail
+            _    -> fail
 {-# INLINE _fslash #-}
 
-_ascii :: Word8 -> Quad -> A.Parser ()
+_ascii :: Word8 -> Quad -> A.Parser Res
 _ascii w q = A.anyWord8 >>= \case
-            0x5c -> void $ A.word8 0x75 >> _quad q
-            w'   | w' == w
-                 -> return ()
-            _    -> mzero
+            0x5c -> A.word8 0x75 >> _quad q
+            w' | w' == w
+                 -> pass
+            _    -> fail
 {-# INLINE _ascii #-}
 
 
-_ctr :: Word8 -> Quad -> A.Parser ()
+_ctr :: Word8 -> Quad -> A.Parser Res
 _ctr w q = A.anyWord8 >>= \case
             0x5c -> A.anyWord8 >>= \case
                 0x75 -> _quad q
-                w' | w `escapesTo` w'
-                   -> return ()
-                _    -> mzero
-            _    -> mzero
+                w' | w `escapesTo` w' -> pass
+                _  -> fail
+            _    -> fail
 {-# INLINE _ctr #-}
 
-_char :: UnconBS -> Quad -> A.Parser ()
-_char v@(w,t) q
+_char :: UnconBS -> Quad -> A.Parser Res
+_char v@(~w,~t) q
     = A.anyWord8 >>= \case
         0x5c -> A.anyWord8 >>= \case
             0x75 -> _quad q
-            _    -> mzero
+            _    -> fail
         x | x == w
-             -> void $ A.string t
-        _    -> mzero
+             -> mark $ A.string t
+        _    -> fail
 
-_surr :: UnconBS -> QuadPair -> A.Parser ()
-_surr v@(w,t) (h,l)
+_surr :: DeconBS -> QuadPair -> A.Parser Res
+_surr v@(~w,~t) (h,l)
     = A.anyWord8 >>= \case
         0x5c -> A.anyWord8 >>= \case
             0x75 -> _qquad h l
-            _    -> mzero
+            _    -> fail
         x | x == w
-             -> void $ A.string t
-        _    -> mzero
+             -> mark $ mapM_ A.word8 t
+        _    -> fail
     where
-        _qquad :: Quad -> Quad -> A.Parser ()
+        _qquad :: Quad -> Quad -> A.Parser Res
         _qquad h l = do { _quad h; A.word8 0x5c; A.word8 0x75; _quad l }
         {-# INLINE _qquad #-}
 
@@ -185,27 +204,29 @@ _class b = case B.uncons b of
                         lh =  ((w2 `shiftR` 2) .&. 0x3) + 0xdc
                         ll =  ((w2 .&. 0x3) `shiftL` 6)
                           .|.  (w3 .&. 0x3f)
-                        q1 = H.encode (B.singleton  hh)
-                          <> H.encode (B.singleton  hl)
-                        q2 = H.encode (B.singleton  lh)
-                          <> H.encode (B.singleton  ll)
-                     in (Surr (w,B.pack$w') (q1,q2), bt')
+                        q1 = H.encode (B.singleton hh)
+                          <> H.encode (B.singleton hl)
+                        q2 = H.encode (B.singleton lh)
+                          <> H.encode (B.singleton ll)
+                     in (Surr (w,w') (q1,q2), bt')
                  | otherwise -> _invalidUnicodeError
     _ -> undefined -- unchecked end-of-bytestring
-
 
 _invalidUnicodeError = error "encountered invalid unicode byte in query string"
 
 mapClass :: ByteString -> [ParseClass]
 mapClass b | B.null b = mempty
            | otherwise =
-                let (c, b') = _class b
+                let (c, ~b') = _class b
                  in c : mapClass b'
 
 
 -- | parseMatch : attempt to match against pre-classified query key,
 --   skipping to end of current string if a non-match is found
 parseMatch :: [ParseClass] -> A.Parser Bool
-parseMatch x = matching x <|> (False <$ skipToEndQ)
-    where
-        matching = (True <$) . mapM_ (_match)
+parseMatch [] = A.anyWord8 >>= \case
+    0x22 -> pure True
+    _    -> False <$ skipToEndQ
+parseMatch (x:xs) = _match x >>= \case
+    True -> parseMatch xs
+    False -> False <$ skipToEndQ

@@ -37,73 +37,73 @@ symbol w = A.word8 w *> A.skipSpace
 -- ** Patterns for special parse-interrupt characters
 
 -- | ASCII '\\'
-pattern Bslash :: Integral a => a
+pattern Bslash :: Word8
 pattern Bslash = 0x5c
 
 -- | ASCII '"'
-pattern Quote :: Integral a => a
+pattern Quote :: Word8
 pattern Quote = 0x22
 
 -- ** Patterns for escaped characters
 
 -- | ASCII '/'
-pattern Slash :: Integral a => a
+pattern Slash :: Word8
 pattern Slash = 0x2F
 
 -- | ASCII 'b'
-pattern Esc_b :: Integral a => a
+pattern Esc_b :: Word8
 pattern Esc_b = 0x62
 
 -- | ASCII 'f'
-pattern Esc_f :: Integral a => a
+pattern Esc_f :: Word8
 pattern Esc_f = 0x66
 
 -- | ASCII 'n'
-pattern Esc_n :: Integral a => a
+pattern Esc_n :: Word8
 pattern Esc_n = 0x6E
 
 -- | ASCII 'r'
-pattern Esc_r :: Integral a => a
+pattern Esc_r :: Word8
 pattern Esc_r = 0x72
 
 -- | ASCII 't'
-pattern Esc_t :: Integral a => a
+pattern Esc_t :: Word8
 pattern Esc_t = 0x74
 
 -- ** Patterns for delimiters
 
 -- | ASCII '['
-pattern LBracket :: Integral a => a
+pattern LBracket :: Word8
 pattern LBracket = 0x5b
 -- | ASCII ']'
-pattern RBracket :: Integral a => a
+pattern RBracket :: Word8
 pattern RBracket = 0x5d
 -- | ASCII '{'
-pattern LBrace :: Integral a => a
+pattern LBrace :: Word8
 pattern LBrace = 0x7b
 -- | ASCII '}'
-pattern RBrace :: Integral a => a
+pattern RBrace :: Word8
 pattern RBrace = 0x7d
 
 -- ** Patterns for range bounds on ASCII characters that are valid hexadecimal digits
 
 -- | ASCII '0'
-pattern Hex_0 :: Integral a => a
+pattern Hex_0 :: Word8
 
 -- | ASCII '9'
-pattern Hex_9 :: Integral a => a
+pattern Hex_9 :: Word8
 
 -- | ASCII 'A'
-pattern Hex_A :: Integral a => a
+pattern Hex_A :: Word8
 
 -- | ASCII 'F'
-pattern Hex_F :: Integral a => a
+pattern Hex_F :: Word8
 
 -- | ASCII 'a'
-pattern Hex_a :: Integral a => a
+pattern Hex_a :: Word8
 
 -- | ASCII 'f'
-pattern Hex_f :: Integral a => a
+pattern Hex_f :: Word8
 
 pattern Hex_0 = 0x30
 pattern Hex_9 = 0x39

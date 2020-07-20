@@ -41,14 +41,12 @@ isSimple Quote = False
 -}
 isSimple    _ = True
 {-# SPECIALIZE INLINE isSimple :: Word8 -> Bool #-}
---{-# SPECIALIZE INLINE isSimple :: Char  -> Bool #-}
 
 -- | single-character predicate that only '\' passes
 isBslash :: (Integral a) => a -> Bool
 isBslash 0x5c = True
 isBslash _    = False
 {-# SPECIALIZE INLINE isBslash :: Word8 -> Bool #-}
--- {-# SPECIALIZE INLINE isBslash :: Char  -> Bool #-}
 
 -- | predicate test for case-insensitive hexadecimal characters (0-9,A-F,a-f)
 isHexChar :: (Integral a) => a -> Bool
@@ -61,7 +59,6 @@ isHexChar w = (w >= Hex_0 && w <= Hex_9) ||
               (w >= Hex_a && w <= Hex_f)
 -}
 {-# SPECIALIZE INLINE isHexChar :: Word8 -> Bool #-}
--- {-# SPECIALIZE INLINE isHexChar :: Char  -> Bool #-}
 
 -- tests for single-character escape sequences
 escAtom :: (Integral a) => a -> Bool
@@ -85,7 +82,6 @@ escAtom Esc_t = True
 -}
 escAtom _ = False
 {-# SPECIALIZE INLINE escAtom :: Word8 -> Bool #-}
--- {-# SPECIALIZE INLINE escAtom :: Char  -> Bool #-}
 
 -- | tests for whether a word8 requires special handling when fast-skipping to closing brace/bracket
 isSpecial :: (Integral a) => a -> Bool
@@ -305,11 +301,9 @@ skipQuick end = do
             0x7b -> skipQuick 0x7d >> skipQuick end
             _    -> mzero
 {-# RULES
-    "skipQuick/skipRestObj" skipQuick 0x7d = skipRestObj
+"skipQuick/skipRestObj" skipQuick 125 = skipRestObj
+"skipQuick/skipRestArr" skipQuick 93 = skipRestArr
   #-}
-{-# RULES
-    "skipQuick/skipRestArr" skipQuick 0x5d = skipRestArr
- #-}
 
 -- | Skip any trailing list of object keys and values and final close-brace
 -- starting at the initial comma.

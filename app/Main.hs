@@ -15,6 +15,7 @@ import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8, 
 import qualified Data.Attoparsec.Text as T (char)
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Builder as D
@@ -39,7 +40,7 @@ main = do
            Nothing             -> pure ()
   where
     qkey args = case args of
-        a:_ -> S8.pack a
+        a:_ -> T.encodeUtf8 . T.pack $ a
         _   -> "name"
 
     go key = loop False True . parser

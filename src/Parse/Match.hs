@@ -1,6 +1,9 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+
+#define MATCH_USE_MAGIC 1
 
 -- | Specialized parser directives for matching all possible representations
 -- of JSON-encoded string values.
@@ -37,20 +40,19 @@ type ControlChar = Word8
 
 -- | binary predicate that matches control characters to escaped literals
 escapesTo :: ControlChar -> EscapeSeq -> Bool
---{-
+#if MATCH_USE_MAGIC
 escapesTo 0x0a 0x6e = True
 escapesTo 0x08 0x62 = True
 escapesTo 0x0c 0x66 = True
 escapesTo 0x0d 0x72 = True
 escapesTo 0x09 0x74 = True
---}
-{-
+#else
 escapesTo Ctr_n Esc_n = True
 escapesTo Ctr_b Esc_b = True
 escapesTo Ctr_f Esc_f = True
 escapesTo Ctr_r Esc_r = True
 escapesTo Ctr_t Esc_t = True
--}
+#endif
 escapesTo    _    _ = False
 {-# INLINE escapesTo #-}
 
@@ -101,63 +103,60 @@ _match (Surr v q)     = _surr v q
 
 -- | parse every valid JSON-string internal encoding of a backslash character
 _bslash :: A.Parser Res
---{-
 _bslash = A.anyWord8 >>= \case
+#if MATCH_USE_MAGIC
             0x5c -> A.anyWord8 >>= \case
                 0x5c -> pass -- \\
                 0x75 -> _quad "005c" -- \u005c
-                _    -> fail
-            _    -> fail
---}
-{-
-_bslash = A.anyWord8 >>= \case
+#else
             Bslash -> A.anyWord8 >>= \case
                 Bslash -> pass -- \\
                 Quad_u -> _quad "005c" -- \u005c
+#endif
                 _    -> fail
             _    -> fail
--}
 {-# INLINE _bslash #-}
 
 -- because 0022 is digit-only, A.string is slightly better than A.stringCI
 _vquote :: A.Parser Res
 _vquote = A.anyWord8 >>= \case
---{-
+#if MATCH_USE_MAGIC
             0x5c -> A.anyWord8 >>= \case
                 0x22 -> pass -- \"
                 0x75 -> mark $ A.string "0022" -- \u0022
---}
-{-
+#else
             Bslash -> A.anyWord8 >>= \case
                 Quote -> pass -- \"
                 Hex_u -> mark $ A.string "0022" -- \u0022
--}
+#endif
                 _    -> fail
             _    -> fail
 {-# INLINE _vquote #-}
 
 _fslash :: A.Parser Res
 _fslash = A.anyWord8 >>= \case
---{-
+#if MATCH_USE_MAGIC
             0x2f -> pass
             0x5c -> A.anyWord8 >>= \case
                 0x2f -> pass
                 0x75 -> _quad "002f" -- \u002f
---}
-{-
+#else
             Slash  -> pass
             Bslash -> A.anyWord8 >>= \case
                 Slash -> pass
                 Hex_u -> _quad "002f" -- \u002f
--}
+#endif
                 _    -> fail
             _    -> fail
 {-# INLINE _fslash #-}
 
 _ascii :: Word8 -> Quad -> A.Parser Res
 _ascii w q = A.anyWord8 >>= \case
+#if MATCH_USE_MAGIC
             0x5c -> A.word8 0x75 >> _quad q
---            Bslash -> A.word8 Hex_u >> _quad q
+#else
+            Bslash -> A.word8 Hex_u >> _quad q
+#endif
             w' | w' == w
                  -> pass
             _    -> fail
@@ -166,14 +165,13 @@ _ascii w q = A.anyWord8 >>= \case
 
 _ctr :: Word8 -> Quad -> A.Parser Res
 _ctr w q = A.anyWord8 >>= \case
---{-
+#if MATCH_USE_MAGIC
             0x5c -> A.anyWord8 >>= \case
                 0x75 -> _quad q
---}
-{-
+#else
             Slash -> A.anyWord8 >>= \case
                 Hex_u -> _quad q
--}
+#endif
                 w' | w `escapesTo` w' -> pass
                 _  -> fail
             _    -> fail
@@ -182,14 +180,13 @@ _ctr w q = A.anyWord8 >>= \case
 _char :: UnconBS -> Quad -> A.Parser Res
 _char ~(w,t) q
     = A.anyWord8 >>= \case
---{-
+#if MATCH_USE_MAGIC
         0x5c -> A.anyWord8 >>= \case
             0x75 -> _quad q
---}
-{-
+#else
         Bslash -> A.anyWord8 >>= \case
             Hex_u -> _quad q
--}
+#endif
             _    -> fail
         x | x == w -> mark $ A.string t
         _    -> fail
@@ -197,21 +194,23 @@ _char ~(w,t) q
 _surr :: DeconBS -> QuadPair -> A.Parser Res
 _surr ~(w,t) (h,l)
     = A.anyWord8 >>= \case
---{-
+#if MATCH_USE_MAGIC
         0x5c -> A.anyWord8 >>= \case
             0x75 -> _qquad h l
---}
-{-
+#else
         Bslash -> A.anyWord8 >>= \case
             Hex_u -> _qquad h l
--}
+#endif
             _    -> fail
         x | x == w -> mark $ mapM_ A.word8 t
         _    -> fail
     where
         _qquad :: Quad -> Quad -> A.Parser Res
+#if MATCH_USE_MAGIC
         _qquad h l = do { _quad h; A.word8 0x5c; A.word8 0x75; _quad l }
-        --_qquad h l = do { _quad h; A.word8 Bslash; A.word8 Hex_u; _quad l }
+#else
+        _qquad h l = do { _quad h; A.word8 Bslash; A.word8 Hex_u; _quad l }
+#endif
         {-# INLINE _qquad #-}
 
 
@@ -234,16 +233,15 @@ _class b = case B.uncons b of
                      in (Control w q, bt)
                  | w < 0x80
                  -> case w of
-                      --{-
+#if MATCH_USE_MAGIC
                         0x22 -> (VQuote, bt)
                         0x5c -> (BSlash, bt)
                         0x2f -> (FSlash, bt)
-                      --}
-                      {-
+#else
                         Quote  -> (VQuote, bt)
                         Bslash -> (BSlash, bt)
                         Slash  -> (FSlash, bt)
-                       -}
+#endif
                         _    -> let q = "00" <> H.encode (B.singleton w)
                                  in (Direct w q, bt)
                  | w >= 0xc0 && w < 0xe0
@@ -286,8 +284,11 @@ mapClass b | B.null b = mempty
 --   skipping to end of current string if a non-match is found
 parseMatch :: [ParseClass] -> A.Parser Bool
 parseMatch [] = A.anyWord8 >>= \case
+#if MATCH_USE_MAGIC
     0x22 -> pure True
---  Quote -> pure True
+#else
+    Quote -> pure True
+#endif
     _    -> False <$ skipToEndQ
 parseMatch (x:xs) = _match x >>= \case
     True -> parseMatch xs

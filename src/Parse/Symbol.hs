@@ -5,10 +5,15 @@ module Parse.Symbol
   , pattern Bslash
   , pattern Quote
   , pattern Slash
+  , pattern Minus
+  , pattern Comma
+  , pattern Period
+  , pattern Colon
   , pattern Esc_b, pattern Esc_f, pattern Esc_n, pattern Esc_r, pattern Esc_t
   , pattern Ctr_b, pattern Ctr_f, pattern Ctr_n, pattern Ctr_r, pattern Ctr_t
   , pattern LBracket, pattern LBrace
   , pattern RBracket, pattern RBrace
+  , pattern Lit_n, pattern Lit_t, pattern Lit_f
   , pattern Hex_u
   , pattern Hex_0, pattern Hex_9
   , pattern Hex_A, pattern Hex_F
@@ -36,6 +41,22 @@ pattern Bslash = 0x5c
 -- | ASCII '"'
 pattern Quote :: Word8
 pattern Quote = 0x22
+
+-- | ASCII '-'
+pattern Minus :: Word8
+pattern Minus = 0x2d
+
+-- | ASCII ','
+pattern Comma :: Word8
+pattern Comma = 0x2c
+
+-- | ASCII '.'
+pattern Period :: Word8
+pattern Period = 0x2e
+
+-- | ASCII ':'
+pattern Colon :: Word8
+pattern Colon = 0x3a
 
 -- ** Patterns for escaped characters
 
@@ -99,6 +120,17 @@ pattern LBrace = 0x7b
 -- | ASCII '}'
 pattern RBrace :: Word8
 pattern RBrace = 0x7d
+
+-- ** Patterns for specific literal ASCII chars
+
+pattern Lit_n :: Word8
+pattern Lit_n = 0x6e
+
+pattern Lit_t :: Word8
+pattern Lit_t = 0x74
+
+pattern Lit_f :: Word8
+pattern Lit_f = 0x66
 
 -- ** Patterns for hexadecimal quads
 

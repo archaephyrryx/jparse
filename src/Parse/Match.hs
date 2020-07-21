@@ -1,12 +1,11 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE UnboxedTuples #-}
 
+-- | Specialized parser directives for matching all possible representations
+-- of JSON-encoded string values.
+--
+-- Compatible with UTF-16 BMP characters and surrogates pairs.
 module Parse.Match (mapClass, parseMatch, ParseClass) where
 
 import           Prelude hiding (fail)
@@ -20,16 +19,14 @@ import           Data.ByteString (ByteString)
 import           Data.Word (Word8)
 import qualified Data.ByteString.Base16 as H (encode)
 
-
--- import GHC.Prim
-
-
 import Parse.Read (skipToEndQ)
+import Parse.Symbol
 
 
 type DeconBS = (Word8, [Word8])
 type UnconBS = (Word8, ByteString)
--- | 4-hex digit bytestring to be matched case-insensitively
+
+-- | Bytestring consisting of 4 hexadecimal characters, to be matched case-insensitively
 type Quad = ByteString
 -- | sequence of two quads for surrogate pair hi-low escapes
 type QuadPair = (Quad,Quad)
@@ -40,22 +37,34 @@ type ControlChar = Word8
 
 -- | binary predicate that matches control characters to escaped literals
 escapesTo :: ControlChar -> EscapeSeq -> Bool
+--{-
 escapesTo 0x0a 0x6e = True
 escapesTo 0x08 0x62 = True
 escapesTo 0x0c 0x66 = True
 escapesTo 0x0d 0x72 = True
 escapesTo 0x09 0x74 = True
+--}
+{-
+escapesTo Ctr_n Esc_n = True
+escapesTo Ctr_b Esc_b = True
+escapesTo Ctr_f Esc_f = True
+escapesTo Ctr_r Esc_r = True
+escapesTo Ctr_t Esc_t = True
+-}
 escapesTo    _    _ = False
 {-# INLINE escapesTo #-}
 
--- type classifying Unicode characters according to how they are to be parsed
-data ParseClass = BSlash
-                | VQuote
-                | FSlash
-                | Control Word8  Quad
-                | Direct  Word8  Quad
-                | BMP    UnconBS Quad
-                | Surr   DeconBS QuadPair
+-- | ParseClass is an algebraic type expressing specific characters and character sequences
+--   to be interpreted as parser directives. With the exception of @BSlash@, @VQuote@, and
+--   @FSlash@, all constructors simultaneously carry a basic representation and their representation
+--   as hexadecimal tetragraphs (@Quad@ or @QuadPair@).
+data ParseClass = BSlash -- ^ Backslash
+                | VQuote -- ^ Verbatim double-quote
+                | FSlash -- ^ Forward slash
+                | Control Word8  Quad -- ^ Control character
+                | Direct  Word8  Quad -- ^ Directly representable ASCII
+                | BMP    UnconBS Quad -- ^ UTF-16 character within the BMP
+                | Surr   DeconBS QuadPair -- ^ UTF-16 surrogate pair
                 deriving (Eq)
 
 
@@ -81,41 +90,66 @@ _quad = mark . A.stringCI
 
 -- | match : attempt to match parser output against a single parse-class character directive
 _match :: ParseClass -> A.Parser Res
-_match !(BSlash)      = _bslash
-_match !(VQuote)      = _vquote
-_match !(FSlash)      = _fslash
-_match !(Direct  w q)  = _ascii w q
-_match !(Control w q)  = _ctr w q
-_match !(BMP  v q)     = _char v q
-_match !(Surr v q)     = _surr v q
+_match BSlash         = _bslash
+_match VQuote         = _vquote
+_match FSlash         = _fslash
+_match (Direct  w q)  = _ascii w q
+_match (Control w q)  = _ctr w q
+_match (BMP  v q)     = _char v q
+_match (Surr v q)     = _surr v q
 
 
 -- | parse every valid JSON-string internal encoding of a backslash character
 _bslash :: A.Parser Res
+--{-
 _bslash = A.anyWord8 >>= \case
             0x5c -> A.anyWord8 >>= \case
                 0x5c -> pass -- \\
                 0x75 -> _quad "005c" -- \u005c
                 _    -> fail
             _    -> fail
+--}
+{-
+_bslash = A.anyWord8 >>= \case
+            Bslash -> A.anyWord8 >>= \case
+                Bslash -> pass -- \\
+                Quad_u -> _quad "005c" -- \u005c
+                _    -> fail
+            _    -> fail
+-}
 {-# INLINE _bslash #-}
 
 -- because 0022 is digit-only, A.string is slightly better than A.stringCI
 _vquote :: A.Parser Res
 _vquote = A.anyWord8 >>= \case
+--{-
             0x5c -> A.anyWord8 >>= \case
                 0x22 -> pass -- \"
                 0x75 -> mark $ A.string "0022" -- \u0022
+--}
+{-
+            Bslash -> A.anyWord8 >>= \case
+                Quote -> pass -- \"
+                Hex_u -> mark $ A.string "0022" -- \u0022
+-}
                 _    -> fail
             _    -> fail
 {-# INLINE _vquote #-}
 
 _fslash :: A.Parser Res
 _fslash = A.anyWord8 >>= \case
+--{-
             0x2f -> pass
             0x5c -> A.anyWord8 >>= \case
                 0x2f -> pass
                 0x75 -> _quad "002f" -- \u002f
+--}
+{-
+            Slash  -> pass
+            Bslash -> A.anyWord8 >>= \case
+                Slash -> pass
+                Hex_u -> _quad "002f" -- \u002f
+-}
                 _    -> fail
             _    -> fail
 {-# INLINE _fslash #-}
@@ -123,6 +157,7 @@ _fslash = A.anyWord8 >>= \case
 _ascii :: Word8 -> Quad -> A.Parser Res
 _ascii w q = A.anyWord8 >>= \case
             0x5c -> A.word8 0x75 >> _quad q
+--            Bslash -> A.word8 Hex_u >> _quad q
             w' | w' == w
                  -> pass
             _    -> fail
@@ -131,35 +166,52 @@ _ascii w q = A.anyWord8 >>= \case
 
 _ctr :: Word8 -> Quad -> A.Parser Res
 _ctr w q = A.anyWord8 >>= \case
+--{-
             0x5c -> A.anyWord8 >>= \case
                 0x75 -> _quad q
+--}
+{-
+            Slash -> A.anyWord8 >>= \case
+                Hex_u -> _quad q
+-}
                 w' | w `escapesTo` w' -> pass
                 _  -> fail
             _    -> fail
 {-# INLINE _ctr #-}
 
 _char :: UnconBS -> Quad -> A.Parser Res
-_char v@(~w,~t) q
+_char ~(w,t) q
     = A.anyWord8 >>= \case
+--{-
         0x5c -> A.anyWord8 >>= \case
             0x75 -> _quad q
+--}
+{-
+        Bslash -> A.anyWord8 >>= \case
+            Hex_u -> _quad q
+-}
             _    -> fail
-        x | x == w
-             -> mark $ A.string t
+        x | x == w -> mark $ A.string t
         _    -> fail
 
 _surr :: DeconBS -> QuadPair -> A.Parser Res
-_surr v@(~w,~t) (h,l)
+_surr ~(w,t) (h,l)
     = A.anyWord8 >>= \case
+--{-
         0x5c -> A.anyWord8 >>= \case
             0x75 -> _qquad h l
+--}
+{-
+        Bslash -> A.anyWord8 >>= \case
+            Hex_u -> _qquad h l
+-}
             _    -> fail
-        x | x == w
-             -> mark $ mapM_ A.word8 t
+        x | x == w -> mark $ mapM_ A.word8 t
         _    -> fail
     where
         _qquad :: Quad -> Quad -> A.Parser Res
         _qquad h l = do { _quad h; A.word8 0x5c; A.word8 0x75; _quad l }
+        --_qquad h l = do { _quad h; A.word8 Bslash; A.word8 Hex_u; _quad l }
         {-# INLINE _qquad #-}
 
 
@@ -171,7 +223,10 @@ depack n b =
 {-# INLINE depack #-}
 
 
--- | treats an arbitrary character as a parse directive for \u escaped hexadecimal sequences
+-- | Maps the first character-token of a ByteString to a ParseClass directive that matches against all
+--   JSON-encoded representations of that character, either as a literal or escaped ASCII character,
+--   a literal
+--   or as \u-escaped hexadecimal sequences
 _class :: ByteString -> (ParseClass, ByteString)
 _class b = case B.uncons b of
     Just (w, bt) | w < 0x20
@@ -179,9 +234,16 @@ _class b = case B.uncons b of
                      in (Control w q, bt)
                  | w < 0x80
                  -> case w of
+                      --{-
                         0x22 -> (VQuote, bt)
                         0x5c -> (BSlash, bt)
                         0x2f -> (FSlash, bt)
+                      --}
+                      {-
+                        Quote  -> (VQuote, bt)
+                        Bslash -> (BSlash, bt)
+                        Slash  -> (FSlash, bt)
+                       -}
                         _    -> let q = "00" <> H.encode (B.singleton w)
                                  in (Direct w q, bt)
                  | w >= 0xc0 && w < 0xe0
@@ -217,15 +279,15 @@ _invalidUnicodeError = error "encountered invalid unicode byte in query string"
 mapClass :: ByteString -> [ParseClass]
 mapClass b | B.null b = mempty
            | otherwise =
-                let (c, ~b') = _class b
-                 in c : mapClass b'
-
+             let (c, b') = _class b
+              in c : mapClass b'
 
 -- | parseMatch : attempt to match against pre-classified query key,
 --   skipping to end of current string if a non-match is found
 parseMatch :: [ParseClass] -> A.Parser Bool
 parseMatch [] = A.anyWord8 >>= \case
     0x22 -> pure True
+--  Quote -> pure True
     _    -> False <$ skipToEndQ
 parseMatch (x:xs) = _match x >>= \case
     True -> parseMatch xs

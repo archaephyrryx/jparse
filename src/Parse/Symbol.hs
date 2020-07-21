@@ -5,21 +5,14 @@ module Parse.Symbol
   , pattern Bslash
   , pattern Quote
   , pattern Slash
-  , pattern Esc_b
-  , pattern Esc_f
-  , pattern Esc_n
-  , pattern Esc_r
-  , pattern Esc_t
-  , pattern LBracket
-  , pattern RBracket
-  , pattern LBrace
-  , pattern RBrace
-  , pattern Hex_0
-  , pattern Hex_9
-  , pattern Hex_A
-  , pattern Hex_F
-  , pattern Hex_a
-  , pattern Hex_f
+  , pattern Esc_b, pattern Esc_f, pattern Esc_n, pattern Esc_r, pattern Esc_t
+  , pattern Ctr_b, pattern Ctr_f, pattern Ctr_n, pattern Ctr_r, pattern Ctr_t
+  , pattern LBracket, pattern LBrace
+  , pattern RBracket, pattern RBrace
+  , pattern Hex_u
+  , pattern Hex_0, pattern Hex_9
+  , pattern Hex_A, pattern Hex_F
+  , pattern Hex_a, pattern Hex_f
   ) where
 
 import qualified Data.Attoparsec.ByteString as A
@@ -70,6 +63,28 @@ pattern Esc_r = 0x72
 pattern Esc_t :: Word8
 pattern Esc_t = 0x74
 
+-- ** Patterns for control characters
+
+-- | ASCII '\b'
+pattern Ctr_b :: Word8
+pattern Ctr_b = 0x08
+
+-- | ASCII '\f'
+pattern Ctr_f :: Word8
+pattern Ctr_f = 0x0c
+
+-- | ASCII '\n'
+pattern Ctr_n :: Word8
+pattern Ctr_n = 0x0a
+
+-- | ASCII '\r'
+pattern Ctr_r :: Word8
+pattern Ctr_r = 0x0d
+
+-- | ASCII '\t'
+pattern Ctr_t :: Word8
+pattern Ctr_t = 0x09
+
 -- ** Patterns for delimiters
 
 -- | ASCII '['
@@ -85,7 +100,13 @@ pattern LBrace = 0x7b
 pattern RBrace :: Word8
 pattern RBrace = 0x7d
 
--- ** Patterns for range bounds on ASCII characters that are valid hexadecimal digits
+-- ** Patterns for hexadecimal quads
+
+-- | Pattern for ASCII 'u'
+pattern Hex_u :: Word8
+pattern Hex_u = 0x75
+
+-- *** Patterns for range bounds on ASCII characters that are valid hexadecimal digits
 
 -- | ASCII '0'
 pattern Hex_0 :: Word8

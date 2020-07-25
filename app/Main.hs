@@ -25,62 +25,90 @@ import           Data.Word (Word8)
 import qualified System.Environment as Sys
 import           System.IO (stdout)
 
+import Data.Function (fix)
+import Data.Void (Void)
+
 import Parse
 
-fix :: (a -> a) -> a
-fix f = let x = f x in x
+-- | query key function: extracts a query bytestring from command line argument list
+--   default if no arguments found is "name" for historical reasons
+qkey :: [String] -> ByteString
+qkey = \case
+    a:_ -> T.encodeUtf8 . T.pack $ a
+    _   -> "name"
+{-# INLINE qkey #-}
+
 
 main :: IO ()
 main = do
    key <- qkey <$> Sys.getArgs
+   let ckey = mapClass $! key
+       parser = A.parse (seekInObj ckey)
    C.runConduit $ C.stdinC .| fix \retry -> do
        fmap trim <$> C.await >>= \case
            Just bs | B.null bs -> retry
-                   | otherwise -> go key bs
-           Nothing             -> pure ()
-  where
-    qkey args = case args of
-        a:_ -> T.encodeUtf8 . T.pack $ a
-        _   -> "name"
+                   | streamEmpty <- False
+                   , cleanState  <- True
+                   -> parseC streamEmpty cleanState parser (parser bs)
+           _       -> pure ()
 
-    go key = loop False True . parser
-      where
-        ckey   = mapClass key
-        parser = A.parse (seekInObj ckey)
 
-        -- | Incrementally parse a stream of JSON values, extracting a single
-        -- key from each, and restarting the parser at the end of each object.
-        loop False _ (A.Done leftover result) = do
-            C.liftIO $ mapM_ (D.hPutBuilder stdout . (<> D.word8 0xa)) result
-            if | more <- trim leftover
-               , not $ B.null more -> loop False True $! parser more
-               | otherwise -> fmap trim <$> C.await >>= \case
-                   Nothing -> pure ()
-                   Just bs -> loop False (B.null bs) $! parser $! bs
-        loop False clean (A.Partial c) = C.await >>= \case
-            Nothing -> loop True clean $! A.Partial c
+
+
+
+-- | print a Builder to stdout with a trailing newline
+putLnBuilder :: Maybe Builder -> IO ()
+putLnBuilder Nothing = pure ()
+putLnBuilder (Just b) = D.hPutBuilder stdout (b <> D.word8 0xa)
+
+-- | Run a parser as a conduit sink that prints each parsed result on a separate line.
+--   Recurses until end of output is reached and retrieves additonal ByteString
+--   output from upstream each pass, until parser yields Done or Fail result.
+parseC :: Bool -- ^ has conduit been fully consumed
+       -> Bool -- ^ is the parse-state clean (not mid-parse)
+       -> (ByteString -> A.Result (Maybe Builder)) -- ^ primary parser
+       -> A.Result (Maybe Builder) -- ^ most recent parse result
+       -> C.ConduitT ByteString Void IO ()
+parseC atEnd clean parser res =
+  case res of
+    A.Done leftover result -> do
+      let clean' = not atEnd -- at clean state only if upstream is exhausted
+      C.liftIO (putLnBuilder result)
+      if | more <- trim leftover
+         , not $ B.null more -> parseC atEnd clean parser $! parser more -- recurse on non-empty leftover bytestring
+         | atEnd -> pure () -- upstream fully consumed and no leftover input
+         | otherwise -> C.await >>= \case
+            Nothing -> pure ()
+            Just bs | !bs' <- trim bs
+                    -> parseC False (B.null bs') parser $! (parser $! bs') -- recurse over upstream
+    A.Partial cont
+      | atEnd && clean -> pure ()
+      | atEnd -> parseC atEnd clean parser $! cont B.empty -- continue on empty bytestring when mid-parse
+      | otherwise
+      -> C.await >>= \case
+            Nothing -> parseC True clean parser $! res -- mark end-of-input and retry
             Just bs | more <- trim bs
-                    , not $ B.null more -> loop False False $! c more
-                    | otherwise -> loop False clean $! A.Partial c
-        loop True _ (A.Done leftover result) = do
-            C.liftIO $ mapM_ (D.hPutBuilder stdout . (<> D.word8 0xa)) result
-            if | more <- trim leftover
-               , not $ B.null more -> loop True False $! parser more
-               | otherwise -> pure ()
-        loop True True (A.Partial _) = pure ()
-        loop True False (A.Partial c) = loop True False $! c mempty
-        loop _ _ (A.Fail i ctx e) = fail $ show (i, ctx, e)
+                    , not $ B.null more
+                    -> parseC False False parser $! cont more -- continue on upstream ByteString
+                    | otherwise
+                    -> parseC False clean parser $! res -- retry upstream when output only whitespace
+    A.Fail i ctx e -> fail $ show (i, ctx, e)
 
-    trim ! bs = B.dropWhile A.isSpace_w8 bs
+-- | Strip leading whitespace from a ByteString
+trim :: ByteString -> ByteString
+trim !bs = B.dropWhile A.isSpace_w8 bs
+{-# INLINE trim #-}
 
 -- | Extract bytestring-valued key from a JSON object
 --
+--   Argument is a list of ParseClass values corresponding to
+--   query key, obtained most likely through `mapClass`
 seekInObj :: [ParseClass] -> A.Parser (Maybe Builder)
 seekInObj cs = do
-    symbol 0x7b
+    symbol LBrace
     A.anyWord8 >>= \case
-        0x7d -> pure Nothing
-        0x22 -> getStringValue cs
+        RBrace -> pure Nothing
+        Quote -> getStringValue cs
         _    -> mzero
 
 -- | Extract bytestring-valued key from a sequence of key-value pairs inside a
@@ -92,9 +120,10 @@ getStringValue :: [ParseClass] -> A.Parser (Maybe Builder)
 getStringValue ckey = do
     this <- parseMatch ckey
     if this
-        then do symbol 0x3a <* A.word8 0x22
-                Just <$> parseToEndQ <* skipQuick 0x7d
-        else do symbol 0x3a *> skipValue
-                A.eitherP (symbol 0x2c) (symbol 0x7d) >>= \case
-                    Left  _ -> (A.word8 0x22) *> getStringValue ckey
-                    Right _ -> pure Nothing
+       then do symbol Colon <* A.word8 Quote
+               Just <$> parseToEndQ <* skipRestObj
+       else do symbol Colon *> skipValue
+               token >>= \case
+                  Comma -> A.word8 Quote *> getStringValue ckey
+                  RBrace -> pure Nothing
+                  _ -> mzero

@@ -29,6 +29,11 @@ dependencies:
 
 library:
   source-dirs: src
+  ghc-options:
+    - -O2
+    - -fprof-auto
+    - -fprof-cafs
+
 
 executables:
   jparse-exe:
@@ -38,6 +43,9 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O2
+    - -fprof-auto
+    - -fprof-cafs
     dependencies:
     - jparse
 

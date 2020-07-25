@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6b633890d5cabc85b66aa18403588691a67ffc06238ab68829c56fa4595d5519
+-- hash: 650274bbec5b0ba5da89b8298264226a2e14fcd1c62098b5e72c3808a57fadc3
 
 name:           jparse
 version:        0.1.0.0
@@ -29,12 +29,14 @@ library
   exposed-modules:
       Parse
       Parse.Match
+      Parse.Parser
       Parse.Read
       Parse.Symbol
   other-modules:
       Paths_jparse
   hs-source-dirs:
       src
+  ghc-options: -O2 -fprof-auto -fprof-cafs
   build-depends:
       attoparsec
     , base >=4.7 && <5
@@ -50,7 +52,7 @@ executable jparse-exe
       Paths_jparse
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fprof-auto -fprof-cafs
   build-depends:
       attoparsec
     , base >=4.7 && <5

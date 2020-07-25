@@ -2,6 +2,7 @@
 
 module Parse.Symbol
   ( symbol
+  , token
   , pattern Bslash
   , pattern Quote
   , pattern Slash
@@ -25,10 +26,14 @@ import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8, 
 
 import           Data.Word (Word8)
 
--- | symbol : parses a single-character token and any trailing whitespace
+-- | symbol : skips a single-character token and any trailing whitespace
 symbol :: Word8 -> A.Parser ()
 symbol w = A.word8 w *> A.skipSpace
 {-# INLINE symbol #-}
+
+-- | token : parses an arbitrary single-character token and any trailing whitespace
+token = A.anyWord8 <* A.skipSpace
+{-# INLINE token #-}
 
 -- * Single-character pattern synonyms, with occasional overlap
 

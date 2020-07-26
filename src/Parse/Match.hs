@@ -1,9 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-
-#define MATCH_USE_MAGIC 1
 
 -- | Specialized parser directives for matching all possible representations
 -- of JSON-encoded string values.
@@ -38,22 +35,14 @@ type QuadPair = (Quad,Quad)
 type EscapeSeq = Word8
 type ControlChar = Word8
 
--- | binary predicate that matches control characters to escaped literals
+-- | binary predicate that matches control characters to (un)escaped literals
 escapesTo :: ControlChar -> EscapeSeq -> Bool
-#if MATCH_USE_MAGIC
-escapesTo 0x0a 0x6e = True
-escapesTo 0x08 0x62 = True
-escapesTo 0x0c 0x66 = True
-escapesTo 0x0d 0x72 = True
-escapesTo 0x09 0x74 = True
-#else
 escapesTo Ctr_n Esc_n = True
 escapesTo Ctr_b Esc_b = True
 escapesTo Ctr_f Esc_f = True
 escapesTo Ctr_r Esc_r = True
 escapesTo Ctr_t Esc_t = True
-#endif
-escapesTo    _    _ = False
+escapesTo _     _     = False
 {-# INLINE escapesTo #-}
 
 -- | ParseClass is an algebraic type expressing specific characters and character sequences
@@ -69,29 +58,42 @@ data ParseClass = BSlash -- ^ Backslash
                 | Surr   DeconBS QuadPair -- ^ UTF-16 surrogate pair
                 deriving (Eq)
 
-
--- | abstraction for parser result
-
+-- | abstraction for parser success/failure
 type Res = Bool
 
+-- | monadic computation indicating success
 pass :: (Monad m) => m Res
 pass = return True
 {-# INLINE pass #-}
 
+-- | map success value over a monadic computation
 mark :: (Monad m) => m a -> m Res
 mark = (True <$)
 {-# INLINE mark #-}
 
+-- | monadic computation indicating failure
 fail :: (MonadPlus m) => m Res
 fail = return False
 {-# INLINE fail #-}
 
+-- | (attempt to) consume an input 'Quad' case-insensitively and return success result
 _quad :: Quad -> A.Parser Res
 _quad = mark . A.stringCI
 {-# INLINE _quad #-}
 
--- | match : attempt to match parser output against a single parse-class character directive
-_match :: ParseClass -> A.Parser Res
+-- ** Low-level parser primitives for abstract character-sequences represented by 'ParseClass' values
+
+-- | Alias for a parser whose output value is a result indicating a successful or failed match
+--
+-- Each @Matcher@ defined in this module is implicitly a Parser that returns success if it was able
+-- to consume some 'Word8'-sequence that is a valid JSON-string internal encoding of a specific
+-- ASCII or UTF-16 entity corresponding to a particular 'ParseClass'-typed value. Each 'ParseClass'
+-- constructor has its own respective @Matcher@, which is explicitly named in per-function documentation
+-- when not implied by naming convention.
+type Matcher = A.Parser Res
+
+-- | _match : generically match against any 'ParseClass' by associating each constructor with its respective @Matcher@
+_match :: ParseClass -> Matcher
 _match BSlash         = _bslash
 _match VQuote         = _vquote
 _match FSlash         = _fslash
@@ -100,120 +102,90 @@ _match (Control w q)  = _ctr w q
 _match (BMP  v q)     = _char v q
 _match (Surr v q)     = _surr v q
 
-
--- | parse every valid JSON-string internal encoding of a backslash character
-_bslash :: A.Parser Res
+-- | @Matcher@ that accepts all valid representations of a backslash character
+_bslash :: Matcher
 _bslash = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-            0x5c -> A.anyWord8 >>= \case
-                0x5c -> pass -- \\
-                0x75 -> _quad "005c" -- \u005c
-#else
             Bslash -> A.anyWord8 >>= \case
                 Bslash -> pass -- \\
-                Quad_u -> _quad "005c" -- \u005c
-#endif
+                Hex_u -> _quad "005c" -- \u005c
                 _    -> fail
             _    -> fail
 {-# INLINE _bslash #-}
 
--- because 0022 is digit-only, A.string is slightly better than A.stringCI
-_vquote :: A.Parser Res
+
+-- | @Matcher@ that accepts all valid representations of a double-quote character
+--
+-- As the hexadecimal encoding of @\"@ (@0x22@) is inherently case-insensitive, it is
+-- matched using the regular 'A.string' function rather than '_quad', which uses
+-- 'A.stringCI' internally.
+_vquote :: Matcher
 _vquote = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-            0x5c -> A.anyWord8 >>= \case
-                0x22 -> pass -- \"
-                0x75 -> mark $ A.string "0022" -- \u0022
-#else
             Bslash -> A.anyWord8 >>= \case
                 Quote -> pass -- \"
                 Hex_u -> mark $ A.string "0022" -- \u0022
-#endif
                 _    -> fail
             _    -> fail
 {-# INLINE _vquote #-}
 
-_fslash :: A.Parser Res
+-- | @Matcher@ that accepts all valid representations of a forward-slash character
+--
+-- While this character has no inherent significance that would normally merit a separate
+-- parser, it is unique in that it can be encoded in JSON both by its ASCII representation (@\/@)
+-- and by its backslash-escaped ASCII representation (@\\\/@), which is true for no other character
+_fslash :: Matcher
 _fslash = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-            0x2f -> pass
-            0x5c -> A.anyWord8 >>= \case
-                0x2f -> pass
-                0x75 -> _quad "002f" -- \u002f
-#else
             Slash  -> pass
             Bslash -> A.anyWord8 >>= \case
                 Slash -> pass
                 Hex_u -> _quad "002f" -- \u002f
-#endif
                 _    -> fail
             _    -> fail
 {-# INLINE _fslash #-}
 
-_ascii :: Word8 -> Quad -> A.Parser Res
+
+-- | @Matcher@ that accepts all valid representations of a directly-representable ASCII character
+_ascii :: Word8 -> Quad -> Matcher
 _ascii w q = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-            0x5c -> A.word8 0x75 >> _quad q
-#else
+            w' | w' == w -> pass
             Bslash -> A.word8 Hex_u >> _quad q
-#endif
-            w' | w' == w
-                 -> pass
-            _    -> fail
+            _      -> fail
 {-# INLINE _ascii #-}
 
-
-_ctr :: Word8 -> Quad -> A.Parser Res
+-- | @Matcher@ that accepts all valid representations of an ASCII control character
+_ctr :: Word8 -> Quad -> Matcher
 _ctr w q = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-            0x5c -> A.anyWord8 >>= \case
-                0x75 -> _quad q
-#else
             Slash -> A.anyWord8 >>= \case
-                Hex_u -> _quad q
-#endif
                 w' | w `escapesTo` w' -> pass
+                Hex_u -> _quad q
                 _  -> fail
             _    -> fail
 {-# INLINE _ctr #-}
 
-_char :: UnconBS -> Quad -> A.Parser Res
+-- | @Matcher@ that accepts all valid representations of UTF-16 characters within the BMP
+_char :: UnconBS -> Quad -> Matcher
 _char ~(w,t) q
     = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-        0x5c -> A.anyWord8 >>= \case
-            0x75 -> _quad q
-#else
+        x | x == w -> mark $ A.string t
         Bslash -> A.anyWord8 >>= \case
             Hex_u -> _quad q
-#endif
             _    -> fail
-        x | x == w -> mark $ A.string t
         _    -> fail
 
-_surr :: DeconBS -> QuadPair -> A.Parser Res
+-- | @Matcher@ that accepts all valid representations of UTF-16 surrogate pairs
+_surr :: DeconBS -> QuadPair -> Matcher
 _surr ~(w,t) (h,l)
     = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-        0x5c -> A.anyWord8 >>= \case
-            0x75 -> _qquad h l
-#else
+        x | x == w -> mark $ mapM_ A.word8 t
         Bslash -> A.anyWord8 >>= \case
             Hex_u -> _qquad h l
-#endif
             _    -> fail
-        x | x == w -> mark $ mapM_ A.word8 t
         _    -> fail
     where
         _qquad :: Quad -> Quad -> A.Parser Res
-#if MATCH_USE_MAGIC
-        _qquad h l = do { _quad h; A.word8 0x5c; A.word8 0x75; _quad l }
-#else
         _qquad h l = do { _quad h; A.word8 Bslash; A.word8 Hex_u; _quad l }
-#endif
         {-# INLINE _qquad #-}
 
-
+-- | unpack the first @n@ characters of a ByteString into a list of words
 depack :: Int -> ByteString -> ([Word8], ByteString)
 depack 0 b = ([],b)
 depack n b =
@@ -222,10 +194,7 @@ depack n b =
 {-# INLINE depack #-}
 
 
--- | Maps the first character-token of a ByteString to a ParseClass directive that matches against all
---   JSON-encoded representations of that character, either as a literal or escaped ASCII character,
---   a literal
---   or as \u-escaped hexadecimal sequences
+-- | Extracts the first full codepoint in a ByteString and converts it into a 'ParseClass' value
 _class :: ByteString -> (ParseClass, ByteString)
 _class b = case B.uncons b of
     Just (w, bt) | w < 0x20
@@ -233,15 +202,9 @@ _class b = case B.uncons b of
                      in (Control w q, bt)
                  | w < 0x80
                  -> case w of
-#if MATCH_USE_MAGIC
-                        0x22 -> (VQuote, bt)
-                        0x5c -> (BSlash, bt)
-                        0x2f -> (FSlash, bt)
-#else
                         Quote  -> (VQuote, bt)
                         Bslash -> (BSlash, bt)
                         Slash  -> (FSlash, bt)
-#endif
                         _    -> let q = "00" <> H.encode (B.singleton w)
                                  in (Direct w q, bt)
                  | w >= 0xc0 && w < 0xe0
@@ -274,8 +237,9 @@ _class b = case B.uncons b of
 
 _invalidUnicodeError = error "encountered invalid unicode byte in query string"
 
+-- | Maps every codepoint in a ByteString to a corresponding 'ParseClass' value
 mapClass :: ByteString -> [ParseClass]
-mapClass b | B.null b = mempty
+mapClass b | B.null b = []
            | otherwise =
              let (c, b') = _class b
               in c : mapClass b'
@@ -284,12 +248,8 @@ mapClass b | B.null b = mempty
 --   skipping to end of current string if a non-match is found
 parseMatch :: [ParseClass] -> A.Parser Bool
 parseMatch [] = A.anyWord8 >>= \case
-#if MATCH_USE_MAGIC
-    0x22 -> pure True
-#else
     Quote -> pure True
-#endif
-    _    -> False <$ skipToEndQ
+    _     -> False <$ skipToEndQ
 parseMatch (x:xs) = _match x >>= \case
     True -> parseMatch xs
     False -> False <$ skipToEndQ

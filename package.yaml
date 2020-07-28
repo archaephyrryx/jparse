@@ -31,8 +31,6 @@ library:
   source-dirs: src
   ghc-options:
     - -O2
-    - -fprof-auto
-    - -fprof-cafs
 
 
 executables:
@@ -44,8 +42,6 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    - -fprof-auto
-    - -fprof-cafs
     dependencies:
     - jparse
 
@@ -57,5 +53,7 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O2
     dependencies:
     - jparse
+    - criterion

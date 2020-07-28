@@ -27,16 +27,18 @@ source-repository head
 
 library
   exposed-modules:
+      JParse
       Parse
       Parse.Match
       Parse.Parser
       Parse.Read
+      Parse.ReadAlt
       Parse.Symbol
   other-modules:
       Paths_jparse
   hs-source-dirs:
       src
-  ghc-options: -O2 -fprof-auto -fprof-cafs
+  ghc-options: -O2
   build-depends:
       attoparsec
     , base >=4.7 && <5
@@ -52,7 +54,7 @@ executable jparse-exe
       Paths_jparse
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fprof-auto -fprof-cafs
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       attoparsec
     , base >=4.7 && <5
@@ -67,16 +69,18 @@ test-suite jparse-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Benchmark
       Paths_jparse
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       attoparsec
     , base >=4.7 && <5
     , base16-bytestring
     , bytestring
     , conduit
+    , criterion
     , jparse
     , text
   default-language: Haskell2010

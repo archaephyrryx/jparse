@@ -6,7 +6,9 @@
 -- of JSON-encoded string values.
 --
 -- Compatible with UTF-16 BMP characters and surrogates pairs.
-module Parse.Match (mapClass, parseMatch, ParseClass) where
+module Parse.Match
+  --(mapClass, parseMatch, ParseClass)
+  where
 
 import           Prelude hiding (fail)
 import           Control.Applicative ((<|>))
@@ -20,6 +22,7 @@ import           Data.Word (Word8)
 import qualified Data.ByteString.Base16 as H (encode)
 
 import Parse.Read (skipToEndQ)
+import qualified Parse.ReadAlt as R (skipToEndQ)
 import Parse.Symbol
 
 
@@ -253,3 +256,14 @@ parseMatch [] = A.anyWord8 >>= \case
 parseMatch (x:xs) = _match x >>= \case
     True -> parseMatch xs
     False -> False <$ skipToEndQ
+
+-- | parseMatch : attempt to match against pre-classified query key,
+--   skipping to end of current string if a non-match is found
+parseMatchAlt :: [ParseClass] -> A.Parser Bool
+parseMatchAlt [] = A.anyWord8 >>= \case
+    Quote -> pure True
+    _     -> False <$ R.skipToEndQ
+parseMatchAlt (x:xs) = _match x >>= \case
+    True -> parseMatchAlt xs
+    False -> False <$ R.skipToEndQ
+

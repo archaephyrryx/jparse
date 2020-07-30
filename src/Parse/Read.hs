@@ -103,6 +103,8 @@ skipToEndQ = skipQUnit >> A.skipSpace
         skipQUnit = do
             A.skipWhile isSimple
             void eQuote <|> (skipEscapes >> skipQUnit)
+        {-# INLINE skipQUnit #-}
+{-# INLINE skipToEndQ #-}
 
 -- | escape-parser optimized for many consecutive backslashes
 parseEscapes :: A.Parser Builder
@@ -119,17 +121,30 @@ skipEscapes :: A.Parser ()
 skipEscapes = do
     n <- B.length <$> A.takeWhile isBslash
     when (odd n) skipEscaped
+{-# INLINE skipEscapes #-}
 
 
 -- | basic parser that interprets escaped characters (except backslash)
---   Note: this parser employs backtracking to optimize Builder construction
 parseEscaped :: A.Parser Builder
-parseEscaped =  (D.word8      <$> A.satisfy escAtom)
-            <|> (D.byteString <$>          parseHex)
+parseEscaped =
+  A.anyWord8 >>= \case
+    e | escAtom e -> pure $ D.word8 e
+    Hex_u -> do
+      q <- parseHex
+      pure $ D.word8 Hex_u <> D.byteString q
+{-# INLINE parseEscaped #-}
 
-
-
-
+-- | parses uXXXX hexcodes (without initial u)
+parseHex :: A.Parser ByteString
+parseHex = do
+  q <- A.take 4
+  if B.all isHexChar q
+     then pure q
+     else mzero
+  where
+    parseHexChar = A.satisfy isHexChar
+    {-# INLINE parseHexChar #-}
+{-# INLINE parseHex #-}
 
 
 -- | skipEscaped : efficiently skips over escaped character sequences (omitting leading backslash)
@@ -147,21 +162,7 @@ skipEscaped =
         Esc_t -> pure ()
         Hex_u -> void $ A.count 4 skipHexChar
         _    -> mzero
-
-
-
--- | parses uXXXX hexcodes
-parseHex :: A.Parser ByteString
-parseHex = B.pack <$> ((:) <$> A.word8 Hex_u <*> A.count 4 parseHexChar)
-  where
-    parseHexChar = A.satisfy isHexChar
-    {-# INLINE parseHexChar #-}
-
-{-
--- XXX: orphaned counterpart to parseHex that is not currently used
-skipHex :: A.Parser ()
-skipHex = void $ A.word8 0x75 >> A.count 4 skipHexChar
--}
+{-# INLINE skipEscaped #-}
 
 -- | skipHexChar : consumes a single hexadecimal character (sanity-checking)
 skipHexChar :: A.Parser ()
@@ -179,18 +180,18 @@ skipValue =
         Minus -> skipNumber True  -- numbers that begin in '-' must have at least one digit
         LBracket -> skipArray
         LBrace -> skipObject
-        Lit_n -> A.string _null  *> A.skipSpace
-        Lit_t -> A.string _true  *> A.skipSpace
-        Lit_f -> A.string _false *> A.skipSpace
+        Lit_n -> _null  *> A.skipSpace
+        Lit_t -> _true  *> A.skipSpace
+        Lit_f -> _false *> A.skipSpace
         w     | A.isDigit_w8 w
              -> skipNumber False
         _    -> mzero
     where
         -- character sequence required for JSON literals (null, true, false)
         -- is truncated at head and therefore less transparent than named constants
-        _null  = "ull"
-        _true  = "rue"
-        _false = "alse"
+        _null  = A.string "ull"
+        _true  = A.string "rue"
+        _false = A.string "alse"
         {-# INLINE _null #-}
         {-# INLINE _true #-}
         {-# INLINE _false #-}
@@ -202,7 +203,7 @@ skipArray = do
     A.skipSpace
     A.peekWord8 >>= \case
         Just RBracket -> A.anyWord8 *> A.skipSpace
-        _         -> skipVals -- pattern-match does not distinguish between non-] character and EOF
+        _ -> skipVals -- pattern-match does not distinguish between non-] character and EOF
   where
     skipVals = do
         skipValue
@@ -263,6 +264,10 @@ skipRestArr = do
         _    -> mzero
 
 -- | generic fast-skip to matching terminal symbol
+--
+-- @skipQuick@ is less efficient than 'skipRestObj' or 'skipRestArr' for @]@ or @}@ (respectively).
+-- Please use those functions instead of calling @skipQuick 0x5d@ or @skipQuick 0x7d@ (same for
+-- calls using the synonyms 'RBrace' and 'RBracket').
 skipQuick :: Word8 -> A.Parser ()
 skipQuick end = do
     A.skipWhile $ not . isSpecial
@@ -274,15 +279,9 @@ skipQuick end = do
             LBracket -> skipQuick RBracket >> skipQuick end
             LBrace   -> skipQuick RBrace >> skipQuick end
             _    -> mzero
-{-# NOINLINE [1] skipQuick #-}
-{-# RULES
-"skipQuick/skipRestObj" [2] skipQuick (125 :: Word8) = skipRestObj
-"skipQuick/skipRestArr" [2] skipQuick (93 :: Word8) = skipRestArr
-  #-}
 
 -- | Skip any trailing list of object keys and values and final close-brace
 -- starting at the initial comma.
---
 skipTail :: A.Parser ()
 skipTail = A.anyWord8 >>= \case
     Comma  -> A.skipSpace >> A.word8 Quote *> skipKeyVals

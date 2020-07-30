@@ -93,6 +93,7 @@ parseToEndQ = parseQBuilder <* A.skipSpace
               _      -> do
                 e <- parseEscaped
                 ((sim <> e) <>) <$> parseQBuilder
+{-# INLINE parseToEndQ #-}
 
 -- | skipToEndQ : efficiently skips the remainder of a JSON-formatted string
 --   can be called partway into string parsing provided that no characters
@@ -109,6 +110,7 @@ skipToEndQ = skipQUnit >> A.skipSpace
               Quote  -> pure ()
               _      -> A.anyWord8 >> skipQUnit
         {-# INLINE skipQUnit #-}
+{-# INLINE skipToEndQ #-}
 
 -- | basic parser that interprets escaped characters (except backslash)
 parseEscaped :: A.Parser Builder
@@ -118,6 +120,7 @@ parseEscaped =
     Hex_u -> do
       q <- parseHex
       pure $ D.word8 Hex_u <> D.byteString q
+{-# INLINE parseEscaped #-}
 
 -- | parses uXXXX hexcodes (without initial u)
 parseHex :: A.Parser ByteString
@@ -129,8 +132,7 @@ parseHex = do
   where
     parseHexChar = A.satisfy isHexChar
     {-# INLINE parseHexChar #-}
-
-
+{-# INLINE parseHex #-}
 
 -- | universal parser that skips over arbitrary-type JSON values
 --   does not perform any sanity validation

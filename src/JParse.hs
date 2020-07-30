@@ -67,6 +67,7 @@ runParseWithC :: (MonadIO m, MonadFail m)
               -> m a
 runParseWithC mc parser source = C.runConduit $ source .| runParseC .| mc
   where
+    {-# INLINE runParseC #-}
     runParseC = C.await >>= \case
       Just bs ->
         let bs' = trim bs
@@ -76,7 +77,7 @@ runParseWithC mc parser source = C.runConduit $ source .| runParseC .| mc
                then runParseC
                else parseC streamEmpty cleanState parser (parser bs')
       _       -> pure ()
-
+{-# INLINE runParseWithC #-}
 
 
 -- | Conduit that feeds upstream ByteStrings into a Parser and yields Maybe Builders from successful parses
@@ -157,6 +158,7 @@ getStringValue ckey = do
                   Comma -> A.word8 Quote *> getStringValue ckey
                   RBrace -> pure Nothing
                   _ -> mzero
+{-# INLINE getStringValue #-}
 
 -- | version using 'parseMatchAlt' and Parse.ReadAlt variant functions
 getStringValue' :: [ParseClass] -> A.Parser (Maybe Builder)
@@ -170,3 +172,4 @@ getStringValue' ckey = do
                   Comma -> A.word8 Quote *> getStringValue' ckey
                   RBrace -> pure Nothing
                   _ -> mzero
+{-# INLINE getStringValue' #-}

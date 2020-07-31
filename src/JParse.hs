@@ -27,6 +27,12 @@ import Data.Void (Void)
 import Parse hiding (fail)
 import qualified Parse.ReadAlt as R
 
+import qualified Parse.MatchZepto as Zep
+import qualified Parse.ReadZepto as Zep
+import qualified Parse.Parser.Zepto as Z
+import qualified Parse.Parser as Z
+
+
 -- | query key function: extracts a query bytestring from command line argument list
 --   default if no arguments found is "name" for historical reasons
 qkey :: [String] -> ByteString
@@ -142,6 +148,16 @@ seekInObj' cs = do
         _    -> mzero
 {-# INLINE seekInObj' #-}
 
+-- | version using 'getStringValue\''
+seekInObjZepto :: [ParseClass] -> Z.Parser (Maybe Builder)
+seekInObjZepto cs = do
+    Z.symbol LBrace
+    Z.pop >>= \case
+        RBrace -> pure Nothing
+        Quote -> getStringValueZepto cs
+        _    -> mzero
+{-# INLINE seekInObjZepto #-}
+
 -- | Extract bytestring-valued key from a sequence of key-value pairs inside a
 -- JSON object, then consume and discard the tail of the object throug the
 -- closing brace.  The starting position is immediately after the initial open
@@ -173,3 +189,18 @@ getStringValue' ckey = do
                   RBrace -> pure Nothing
                   _ -> mzero
 {-# INLINE getStringValue' #-}
+
+-- | version using 'Zep.parseMatch' and Parse.ReadZepto variant functions
+getStringValueZepto :: [ParseClass] -> Z.Parser (Maybe Builder)
+getStringValueZepto ckey = do
+    this <- Zep.parseMatch ckey
+    if this
+       then do Z.symbol Colon <* Z.word8 Quote
+               Just <$> Zep.parseToEndQ <* Zep.skipRestObj
+       else do Z.symbol Colon *> Zep.skipValue
+               Z.token >>= \case
+                  Comma -> Z.word8 Quote *> getStringValueZepto ckey
+                  RBrace -> pure Nothing
+                  _ -> mzero
+{-# INLINE getStringValueZepto #-}
+

@@ -19,7 +19,7 @@ import qualified Conduit as C
 import qualified Data.Conduit as C
 import Data.Conduit ((.|))
 
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromJust)
 
 import JParse
 import Parse
@@ -45,24 +45,29 @@ main = do
       , bench "middle"  $ nfIO $ countParse' "foo" "mids.txt"
       ] -}
       bgroup "skipToEndQ escapes" $
-        [ bench "Read"    $ whnf (run skipToEndQ id) bstring
-        , bench "ReadAlt" $ whnf (run Alt.skipToEndQ id) bstring
-        , bench "ReadZepto" $ whnf (run' Zep.skipToEndQ id) bstring
+        [ bench "Base"    $ whnf (run skipToEndQ id) bstring
+        , bench "Alt" $ whnf (run Alt.skipToEndQ id) bstring
+        , bench "Zepto" $ whnf (run' Zep.skipToEndQ id) bstring
         ]
     , bgroup "parseToEndQ escapes" $
-        [ bench "Read"    $ whnf (run parseToEndQ build)     bstring
-        , bench "ReadAlt" $ whnf (run Alt.parseToEndQ build) bstring
-        , bench "ReadZepto" $ whnf (run' Zep.parseToEndQ build) bstring
+        [ bench "Base"    $ whnf (run parseToEndQ build)     bstring
+        , bench "Alt" $ whnf (run Alt.parseToEndQ build) bstring
+        , bench "Zepto" $ whnf (run' Zep.parseToEndQ build) bstring
         ]
     , bgroup "skipToEndQ simple" $
-        [ bench "Read"    $ whnf (run skipToEndQ id) bstring'
-        , bench "ReadAlt" $ whnf (run Alt.skipToEndQ id) bstring'
-        , bench "ReadZepto" $ whnf (run' Zep.skipToEndQ id) bstring'
+        [ bench "Base"    $ whnf (run skipToEndQ id) bstring'
+        , bench "Alt" $ whnf (run Alt.skipToEndQ id) bstring'
+        , bench "Zepto" $ whnf (run' Zep.skipToEndQ id) bstring'
         ]
     , bgroup "parseToEndQ simple" $
-        [ bench "Read"    $ whnf (run parseToEndQ build)     bstring'
-        , bench "ReadAlt" $ whnf (run Alt.parseToEndQ build) bstring'
-        , bench "ReadZepto" $ whnf (run' Zep.parseToEndQ build) bstring'
+        [ bench "Base"    $ whnf (run parseToEndQ build)     bstring'
+        , bench "Alt" $ whnf (run Alt.parseToEndQ build) bstring'
+        , bench "Zepto" $ whnf (run' Zep.parseToEndQ build) bstring'
+        ]
+    , bgroup "seekInObj" $
+        [ bench "Base"    $ whnf (run (keyToParser "foo") $ build.fromJust) fooson
+        , bench "Alt" $ whnf (run (keyToParser' "foo") $ build.fromJust) fooson
+        , bench "Zepto" $ whnf (run' (keyToZepto "foo") $ build.fromJust) fooson
         ]
     ]
 
@@ -80,15 +85,18 @@ bstring = "\"this is an exceptionally long string with escapes such as \\b, \\t,
 bstring' :: ByteString
 bstring' = "\"this is an exceptionally long string with a single quad and no other escapes. the quad is \\u2f3f and everything else is just plain text. really nothing too interesting.\""
 
+fooson :: ByteString
+fooson = "{ \"ignore\" : -123 , \"everything\":null, \"until\":[\"you\",\"see\"] , \"the\":{ \"key\":\"foo\" }, \"foo\":\"<- here it is!\" }"
+
 countParse :: String -> String -> IO Int
 countParse str inp =
   let parser = keyToParser str
-   in C.runResourceT $ runParseWithC (C.lengthIfC isJust) parser (C.sourceFile inp)
+   in C.runResourceT $ runParseWithC (C.lengthIfC isJust) (A.parse parser) (C.sourceFile inp)
 
 countParse' :: String -> String -> IO Int
 countParse' str inp =
   let parser = keyToParser' str
-   in C.runResourceT $ runParseWithC (C.lengthIfC isJust) parser (C.sourceFile inp)
+   in C.runResourceT $ runParseWithC (C.lengthIfC isJust) (A.parse parser) (C.sourceFile inp)
 
 _count = 100000
 _len = 10
@@ -131,17 +139,25 @@ build = L.toStrict . D.toLazyByteStringWith buildStrat L.empty
 
 
 
-
 extract :: A.Result (Maybe D.Builder) -> Int
 extract (A.Done _ (Just x)) = B.length $ build x
 extract _ = 0
 
+extract' :: Either String (Maybe D.Builder) -> Int
+extract' (Right (Just x)) = B.length $ build x
+extract' _ = 0
+
 keyToParser str =
   let key = qkey [str]
       ckey = mapClass key
-   in A.parse (seekInObj ckey)
+   in seekInObj ckey
 
 keyToParser' str =
   let key = qkey [str]
       ckey = mapClass key
-   in A.parse (seekInObj' ckey)
+   in seekInObj' ckey
+
+keyToZepto str =
+  let key = qkey [str]
+      ckey = mapClass key
+   in seekInObjZepto ckey

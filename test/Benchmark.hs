@@ -13,6 +13,7 @@ import qualified Data.ByteString.Lazy as L
 import Data.ByteString (ByteString)
 
 import qualified Data.ByteString.Builder as D
+import qualified Data.ByteString.Builder.Extra as D
 
 import qualified Conduit as C
 import qualified Data.Conduit as C
@@ -20,14 +21,20 @@ import Data.Conduit ((.|))
 
 import Data.Maybe (isJust)
 
-import Parse
 import JParse
+import Parse
+
+import qualified Parse.ReadAlt as Alt
+import qualified Parse.ReadZepto as Zep
+
+import qualified Parse.Parser.Zepto as Z
+
 
 main :: IO ()
 main = do
-  _hrun >> _lrun >> _mrun
+--  _hrun >> _lrun >> _mrun
   defaultMain $
-    [ bgroup "parseObj" $
+    [ {- bgroup "parseObj" $
       [ bench "first"   $ nfIO $ countParse "foo" "heads.txt"
       , bench "last"    $ nfIO $ countParse "foo" "lasts.txt"
       , bench "middle"  $ nfIO $ countParse "foo" "mids.txt"
@@ -36,9 +43,42 @@ main = do
       [ bench "first"   $ nfIO $ countParse' "foo" "heads.txt"
       , bench "last"    $ nfIO $ countParse' "foo" "lasts.txt"
       , bench "middle"  $ nfIO $ countParse' "foo" "mids.txt"
-      ]
+      ] -}
+      bgroup "skipToEndQ escapes" $
+        [ bench "Read"    $ whnf (run skipToEndQ id) bstring
+        , bench "ReadAlt" $ whnf (run Alt.skipToEndQ id) bstring
+        , bench "ReadZepto" $ whnf (run' Zep.skipToEndQ id) bstring
+        ]
+    , bgroup "parseToEndQ escapes" $
+        [ bench "Read"    $ whnf (run parseToEndQ build)     bstring
+        , bench "ReadAlt" $ whnf (run Alt.parseToEndQ build) bstring
+        , bench "ReadZepto" $ whnf (run' Zep.parseToEndQ build) bstring
+        ]
+    , bgroup "skipToEndQ simple" $
+        [ bench "Read"    $ whnf (run skipToEndQ id) bstring'
+        , bench "ReadAlt" $ whnf (run Alt.skipToEndQ id) bstring'
+        , bench "ReadZepto" $ whnf (run' Zep.skipToEndQ id) bstring'
+        ]
+    , bgroup "parseToEndQ simple" $
+        [ bench "Read"    $ whnf (run parseToEndQ build)     bstring'
+        , bench "ReadAlt" $ whnf (run Alt.parseToEndQ build) bstring'
+        , bench "ReadZepto" $ whnf (run' Zep.parseToEndQ build) bstring'
+        ]
     ]
 
+
+
+run :: A.Parser a -> (a -> b) -> ByteString -> b
+run p f b = (\(A.Done _ x) -> f x) $ A.parse p b
+
+run' :: Z.Parser a -> (a -> b) -> ByteString -> b
+run' p f b = (\(Right x) -> f x) $ Z.parse p b
+
+bstring :: ByteString
+bstring = "\"this is an exceptionally long string with escapes such as \\b, \\t, \\\\, and even \\u2f3F-like quads\""
+
+bstring' :: ByteString
+bstring' = "\"this is an exceptionally long string with a single quad and no other escapes. the quad is \\u2f3f and everything else is just plain text. really nothing too interesting.\""
 
 countParse :: String -> String -> IO Int
 countParse str inp =
@@ -83,7 +123,14 @@ genObj bs i n = build $  "{ " <> genObj' bs i n <> " }"
 
 
 build :: D.Builder -> ByteString
-build = L.toStrict . D.toLazyByteString
+build = L.toStrict . D.toLazyByteStringWith buildStrat L.empty
+  where
+    buildStrat = D.untrimmedStrategy 128 256
+    {-# INLINE buildStrat #-}
+{-# INLINE build #-}
+
+
+
 
 extract :: A.Result (Maybe D.Builder) -> Int
 extract (A.Done _ (Just x)) = B.length $ build x

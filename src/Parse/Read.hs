@@ -18,6 +18,7 @@ import qualified Data.ByteString.Char8 as S8
 import           Data.Word (Word8)
 
 import           Parse.Symbol
+import           Parse.Read.Internal
 
 -- * Generic utility-parsers based on low-level attoparsec constructs
 
@@ -25,50 +26,6 @@ import           Parse.Symbol
 skipWhile1 :: (Word8 -> Bool) -> A.Parser ()
 skipWhile1 p = A.skip p *> A.skipWhile p
 {-# INLINE skipWhile1 #-}
-
--- * Size-agnostic single-character predicate functions for efficient string-parsing
-
--- | determines whether a character is a non-escaping string-internal character
-isSimple :: Word8 -> Bool
-isSimple Bslash = False
-isSimple Quote  = False
-isSimple _      = True
-{-# INLINE isSimple #-}
-
--- | single-character predicate that only '\' passes
-isBslash :: Word8 -> Bool
-isBslash Bslash = True
-isBslash _      = False
-{-# INLINE isBslash #-}
-
--- | predicate test for case-insensitive hexadecimal characters (0-9,A-F,a-f)
-isHexChar :: Word8 -> Bool
-isHexChar w = (w >= Hex_0 && w <= Hex_9) ||
-              (w >= Hex_A && w <= Hex_F) ||
-              (w >= Hex_a && w <= Hex_f)
-{-# INLINE isHexChar #-}
-
--- tests for single-character escape sequences
-escAtom :: Word8 -> Bool
-escAtom Quote = True
-escAtom Slash = True
-escAtom Esc_b = True
-escAtom Esc_f = True
-escAtom Esc_n = True
-escAtom Esc_r = True
-escAtom Esc_t = True
-escAtom _     = False
-{-# INLINE escAtom #-}
-
--- | tests for whether a word8 requires special handling when fast-skipping to closing brace/bracket
-isSpecial :: Word8 -> Bool
-isSpecial Quote    = True
-isSpecial LBracket = True
-isSpecial RBracket = True
-isSpecial LBrace   = True
-isSpecial RBrace   = True
-isSpecial _        = False
-{-# INLINE isSpecial #-}
 
 -- * String-centric parsers
 
@@ -98,12 +55,11 @@ parseToEndQ = parseQBuilder <* A.skipSpace
 --   informally validates sanity of contents but does not check for invalid hexadecimal quartet escapes
 skipToEndQ :: A.Parser ()
 skipToEndQ = skipQUnit >> A.skipSpace
-    where
-        skipQUnit :: A.Parser ()
-        skipQUnit = do
-            A.skipWhile isSimple
-            void eQuote <|> (skipEscapes >> skipQUnit)
-        {-# INLINE skipQUnit #-}
+  where
+    skipQUnit :: A.Parser ()
+    skipQUnit = do
+      A.skipWhile isSimple
+      void eQuote <|> (skipEscapes >> skipQUnit)
 {-# INLINE skipToEndQ #-}
 
 -- | escape-parser optimized for many consecutive backslashes

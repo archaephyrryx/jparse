@@ -1,6 +1,9 @@
 module Parse.Parser.Attoparsec where
 
+import qualified Data.ByteString as B
+import           Data.ByteString      (ByteString)
 import qualified Data.Attoparsec.ByteString as A
+import qualified Data.Attoparsec.ByteString.Char8 as A (isSpace)
 import Control.Monad (void)
 import Data.Word (Word8)
 

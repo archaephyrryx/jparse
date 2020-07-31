@@ -10,10 +10,12 @@
 module Parse.Parser.Zepto
   (
     Parser
+  , Result
   , ZeptoT
   , parse
   , parseT
   , atEnd
+  , word8
   , string
   , take
   , skip
@@ -177,7 +179,7 @@ skip !n = do
   if B.length s >= n
     then put (S (B.unsafeDrop n s)) >> pure ()
     else fail "insufficient input"
-{-# INLINE take #-}
+{-# INLINE skip #-}
 
 peek :: Monad m => ZeptoT m (Maybe Word8)
 peek = do
@@ -191,9 +193,20 @@ pop :: Monad m => ZeptoT m Word8
 pop = do
   s <- gets input
   if not $! B.null s
-     then put (S (B.unsafeTail s)) >> pure $! B.unsafeHead s
+     then put (S (B.unsafeTail s)) >> pure (B.unsafeHead s)
      else fail "insufficient input"
 {-# INLINE pop #-}
+
+
+word8 :: Monad m => Word8 -> ZeptoT m ()
+word8 w = do
+  i <- gets input
+  if not $! B.null i
+    then if w == B.unsafeHead i
+      then put (S (B.unsafeTail i)) >> pure ()
+      else fail "word8 did not match"
+    else fail "insufficient input"
+{-# INLINE word8 #-}
 
 -- | Match a string exactly.
 string :: Monad m => ByteString -> ZeptoT m ()

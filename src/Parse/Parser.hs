@@ -10,6 +10,8 @@ module Parse.Parser where
 import           Control.Applicative ((<|>))
 import           Control.Monad (mzero, void, when)
 
+import qualified Data.Attoparsec.ByteString.Char8 as A (isSpace_w8)
+
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
 
@@ -25,7 +27,7 @@ import qualified Data.ByteString.Char8 as S8
 
 import           Data.Word (Word8)
 
-#define PARSER UNUSED
+#define PARSER ZEPTO
 
 
 #if (PARSER==ATTOPARSEC)
@@ -34,9 +36,21 @@ import Parse.Parser.Attoparsec
 import Parse.Parser.Zepto
 #elif (PARSER==HANDROLL)
 import Parse.Parser.Internal
+#else
+skipWhile :: Monad m => m ()
+skipWhile = error "no parser currently specified"
 #endif
 
+skipSpace :: Parser ()
+skipSpace = skipWhile A.isSpace_w8
+{-# INLINE skipSpace #-}
 
+-- | symbol : skips a single-character token and any trailing whitespace
+symbol :: Word8 -> Parser ()
+symbol w = word8 w *> skipSpace
+{-# INLINE symbol #-}
 
-
-
+-- | token : parses an arbitrary single-character token and any trailing whitespace
+token :: Parser Word8
+token = pop <* skipSpace
+{-# INLINE token #-}

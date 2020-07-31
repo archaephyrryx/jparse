@@ -22,7 +22,7 @@ module Parse.Symbol
   ) where
 
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8, skipSpace)
+import qualified Data.Attoparsec.ByteString.Char8 as A (skipSpace)
 
 import           Data.Word (Word8)
 

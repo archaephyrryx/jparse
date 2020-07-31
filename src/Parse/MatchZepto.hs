@@ -6,8 +6,8 @@
 -- of JSON-encoded string values.
 --
 -- Compatible with UTF-16 BMP characters and surrogates pairs.
-module Parse.Match
-  (mapClass, parseMatch, parseMatchAlt, ParseClass)
+module Parse.MatchZepto
+  (mapClass, parseMatch, ParseClass)
   where
 
 import           Prelude hiding (fail)
@@ -17,10 +17,9 @@ import           Data.Word (Word8)
 
 import Parse.Match.Internal
 
-import qualified Parse.Parser.Attoparsec as P
+import qualified Parse.Parser.Zepto as P
 
-import Parse.Read (skipToEndQ)
-import qualified Parse.ReadAlt as R (skipToEndQ)
+import Parse.ReadZepto (skipToEndQ)
 import Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result
@@ -141,13 +140,3 @@ parseMatch [] = P.pop >>= \case
 parseMatch (x:xs) = _match x >>= \case
     True -> parseMatch xs
     False -> False <$ skipToEndQ
-
--- | parseMatch : attempt to match against pre-classified query key,
---   skipping to end of current string if a non-match is found
-parseMatchAlt :: [ParseClass] -> P.Parser Bool
-parseMatchAlt [] = P.pop >>= \case
-    Quote -> pure True
-    _     -> False <$ R.skipToEndQ
-parseMatchAlt (x:xs) = _match x >>= \case
-    True -> parseMatchAlt xs
-    False -> False <$ R.skipToEndQ

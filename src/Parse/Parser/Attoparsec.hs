@@ -3,7 +3,7 @@ module Parse.Parser.Attoparsec where
 import qualified Data.ByteString as B
 import           Data.ByteString      (ByteString)
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (isSpace)
+import qualified Data.Attoparsec.ByteString.Char8 as A (stringCI)
 import Control.Monad (void)
 import Data.Word (Word8)
 
@@ -25,14 +25,27 @@ skip :: Int -> Parser ()
 skip n = void $ A.take n
 {-# INLINE skip #-}
 
+string :: ByteString -> Parser ByteString
+string = A.string
+{-# INLINE string #-}
+
+stringCI :: ByteString -> Parser ByteString
+stringCI = A.stringCI
+{-# INLINE stringCI #-}
+
+skipWhile :: (Word8 -> Bool) -> Parser ()
+skipWhile = A.skipWhile
+{-# INLINE skipWhile #-}
+
+takeWhile :: (Word8 -> Bool) -> Parser ByteString
+takeWhile = A.takeWhile
+{-# INLINE takeWhile #-}
+
+word8 :: Word8 -> Parser Word8
+word8 = A.word8
+{-# INLINE word8 #-}
+
 {-
 A.satisfy
 A.skip
-
-A.skipSpace
-A.skipWhile
-A.string
-A.stringCI
-A.takeWhile
-A.word8
 -}

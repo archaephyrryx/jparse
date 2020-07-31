@@ -3,6 +3,8 @@
 {-# LANGUAGE Trustworthy #-} -- Data.ByteString.Unsafe
 #endif
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MultiWayIf #-}
+
 
 -- Modified clone of Data.Attoparsec.Zepto for comparative benchmarking
 
@@ -17,6 +19,7 @@ module Parse.Parser.Zepto
   , atEnd
   , word8
   , string
+  , stringCI
   , take
   , skip
   , takeWhile
@@ -204,7 +207,7 @@ word8 w = do
   if not $! B.null i
     then if w == B.unsafeHead i
       then put (S (B.unsafeTail i)) >> pure ()
-      else fail "word8 did not match"
+      else fail "word8"
     else fail "insufficient input"
 {-# INLINE word8 #-}
 
@@ -216,6 +219,27 @@ string s = do
     then put (S (B.unsafeDrop (B.length s) i)) >> pure ()
     else fail "string"
 {-# INLINE string #-}
+
+-- | Match a string case-insensitively.
+stringCI :: Monad m => ByteString -> ZeptoT m ()
+stringCI s = do
+  i <- gets input
+  let n = B.length s
+  if n <= B.length i
+    then if s `lowEq` (B.unsafeTake n i)
+      then put (S (B.unsafeDrop (B.length s) i)) >> pure ()
+      else fail "stringCI"
+    else fail "insufficient input"
+{-# INLINE stringCI #-}
+
+-- b1 and b2 must be of same non-zero length
+lowEq :: ByteString -> ByteString -> Bool
+lowEq b1 b2 = B.map toLower b1 == B.map toLower b2
+  where
+    toLower :: Word8 -> Word8
+    toLower w | w >= 65 && w <= 90 = w + 32
+              | otherwise          = w
+{-# INLINE lowEq #-}
 
 -- | Indicate whether the end of the input has been reached.
 atEnd :: Monad m => ZeptoT m Bool

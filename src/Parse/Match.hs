@@ -11,8 +11,6 @@ module Parse.Match
   where
 
 import           Prelude hiding (fail)
-import qualified Data.ByteString as B
-import           Data.ByteString (ByteString)
 import           Data.Word (Word8)
 
 import Parse.Match.Internal

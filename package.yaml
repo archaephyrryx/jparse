@@ -25,6 +25,8 @@ dependencies:
 - bytestring
 - base16-bytestring
 - conduit
+- streaming
+- streaming-bytestring
 - text
 
 library:

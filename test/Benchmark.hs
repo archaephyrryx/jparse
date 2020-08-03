@@ -8,6 +8,8 @@ import qualified Data.Attoparsec.ByteString as A
 
 import Data.Semigroup ((<>))
 
+import Control.Monad.IO.Class (liftIO)
+
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import Data.ByteString (ByteString)
@@ -17,7 +19,15 @@ import qualified Data.ByteString.Builder.Extra as D
 
 import qualified Conduit as C
 import qualified Data.Conduit as C
+import qualified Data.Conduit.Combinators as C
 import Data.Conduit ((.|))
+
+import qualified Data.ByteString.Streaming as BS
+import qualified Data.ByteString.Streaming.Char8 as BS8
+
+import qualified Streaming as S
+import qualified Streaming.Prelude as S
+
 
 import Data.Maybe (isJust, fromJust)
 
@@ -43,7 +53,7 @@ main = do
       [ bench "first"   $ nfIO $ countParse' "foo" "heads.txt"
       , bench "last"    $ nfIO $ countParse' "foo" "lasts.txt"
       , bench "middle"  $ nfIO $ countParse' "foo" "mids.txt"
-      ] -}
+      ]
       bgroup "skipToEndQ escapes" $
         [ bench "Base"    $ whnf (run skipToEndQ id) bstring
         , bench "Alt" $ whnf (run Alt.skipToEndQ id) bstring
@@ -69,7 +79,23 @@ main = do
         , bench "Alt" $ whnf (run (keyToParser' "foo") $ build.fromJust) fooson
         , bench "Zepto" $ whnf (run' (keyToZepto "foo") $ build.fromJust) fooson
         ]
+        -}
+     bgroup "lengths" $
+        [ bench "Conduit" $ nfIO conduitAct
+        , bench "Streaming" $ nfIO streamAct
+        ]
     ]
+
+
+conduitAct = C.runResourceT $ C.runConduit $ C.sourceFile "heads.txt" .| C.linesUnboundedAscii .| C.mapC B.length .| C.sum
+streamAct = C.runResourceT $ S.sum_ $ S.mapped BS8.length $ streamlines "heads.txt"
+
+
+streamZepto :: Monad m => S.Stream (BS8.ByteString m) m r -> S.Stream (Of (Either String (Maybe Builder))) m r
+streamZepto = S.mapped
+
+streamlines :: MonadResource m => String -> S.Stream (BS8.ByteString m) m r
+streamlines = BS8.lines $ BS.readFile "heads.txt"
 
 
 

@@ -32,6 +32,11 @@ import qualified Parse.ReadZepto as Zep
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z
 
+import qualified Parse.MatchStream as ZepS
+import qualified Parse.ReadStream as ZepS
+import qualified Parse.Parser.ZeptoStream as ZS
+import qualified Parse.Parser.Stream as ZS
+
 
 -- | query key function: extracts a query bytestring from command line argument list
 --   default if no arguments found is "name" for historical reasons
@@ -148,7 +153,7 @@ seekInObj' cs = do
         _    -> mzero
 {-# INLINE seekInObj' #-}
 
--- | version using 'getStringValue\''
+-- | version using 'getStringValueZepto'
 seekInObjZepto :: [ParseClass] -> Z.Parser (Maybe Builder)
 seekInObjZepto cs = do
     Z.symbol LBrace
@@ -157,6 +162,16 @@ seekInObjZepto cs = do
         Quote -> getStringValueZepto cs
         _    -> mzero
 {-# INLINE seekInObjZepto #-}
+
+-- | version using 'getStringValueZeptoStream'
+seekInObjZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
+seekInObjZeptoStream cs = do
+    ZS.symbol LBrace
+    ZS.pop >>= \case
+        RBrace -> pure Nothing
+        Quote -> getStringValueZeptoStream cs
+        _    -> mzero
+{-# INLINE seekInObjZeptoStream #-}
 
 -- | Extract bytestring-valued key from a sequence of key-value pairs inside a
 -- JSON object, then consume and discard the tail of the object throug the
@@ -204,3 +219,16 @@ getStringValueZepto ckey = do
                   _ -> mzero
 {-# INLINE getStringValueZepto #-}
 
+-- | version using 'ZepS.parseMatch' and Parse.ReadStream variant functions
+getStringValueZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
+getStringValueZeptoStream ckey = do
+    this <- ZepS.parseMatch ckey
+    if this
+       then do ZS.symbol Colon <* ZS.word8 Quote
+               Just <$> ZepS.parseToEndQ <* ZepS.skipRestObj
+       else do ZS.symbol Colon *> ZepS.skipValue
+               ZS.token >>= \case
+                  Comma -> ZS.word8 Quote *> getStringValueZeptoStream ckey
+                  RBrace -> pure Nothing
+                  _ -> mzero
+{-# INLINE getStringValueZeptoStream #-}

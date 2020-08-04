@@ -23,8 +23,6 @@ import           Data.ByteString.Unsafe (unsafeIndex)
 import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 
-import qualified Data.ByteString.Char8 as S8
-
 import           Data.Word (Word8)
 
 #define PARSER ZEPTO

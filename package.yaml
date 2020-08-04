@@ -28,6 +28,7 @@ dependencies:
 - streaming
 - streaming-bytestring
 - text
+- transformers
 
 library:
   source-dirs: src

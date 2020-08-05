@@ -164,7 +164,7 @@ seekInObjZepto cs = do
 {-# INLINE seekInObjZepto #-}
 
 -- | version using 'getStringValueZeptoStream'
-seekInObjZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
+seekInObjZeptoStream :: Monad m => [ParseClass] -> ZS.Parser m (Maybe Builder)
 seekInObjZeptoStream cs = do
     ZS.symbol LBrace
     ZS.pop >>= \case
@@ -220,7 +220,7 @@ getStringValueZepto ckey = do
 {-# INLINE getStringValueZepto #-}
 
 -- | version using 'ZepS.parseMatch' and Parse.ReadStream variant functions
-getStringValueZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
+getStringValueZeptoStream :: Monad m => [ParseClass] -> ZS.Parser m (Maybe Builder)
 getStringValueZeptoStream ckey = do
     this <- ZepS.parseMatch ckey
     if this

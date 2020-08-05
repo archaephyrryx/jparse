@@ -66,9 +66,7 @@ newtype ZeptoT m a = Parser {
       runParser :: S m -> m (Result m a)
     }
 
-type Parser a = ZeptoT IO a
--- type Parser a = ZeptoT Identity a
--- type ParserIO a = ZeptoT IO a
+type Parser m a = ZeptoT m a
 
 instance Monad m => Functor (ZeptoT m) where
     fmap f m = Parser $ \s -> do
@@ -186,7 +184,8 @@ takeWhile p = do
 -- | Skip input while the predicate returns 'True'
 skipWhile :: Monad m => (Word8 -> Bool) -> ZeptoT m ()
 skipWhile p = do
-  t <- gets (BS.dropWhile p . input)
+  s <- gets input
+  let t = BS.dropWhile p s
   put (S t)
   pure ()
 {-# INLINE skipWhile #-}

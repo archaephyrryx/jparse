@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Specialized parser directives for matching all possible representations
 -- of JSON-encoded string values.
@@ -21,7 +22,7 @@ import Parse.ReadStream (skipToEndQ)
 import Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result
-_quad :: Quad -> P.Parser Res
+_quad :: Monad m => Quad -> P.Parser m Res
 _quad = mark . P.stringCI
 {-# INLINE _quad #-}
 
@@ -34,10 +35,10 @@ _quad = mark . P.stringCI
 -- ASCII or UTF-16 entity corresponding to a particular 'ParseClass'-typed value. Each 'ParseClass'
 -- constructor has its own respective @Matcher@, which is explicitly named in per-function documentation
 -- when not implied by naming convention.
-type Matcher = P.Parser Res
+type Matcher m = P.Parser m Res
 
 -- | _match : generically match against any 'ParseClass' by associating each constructor with its respective @Matcher@
-_match :: ParseClass -> Matcher
+_match :: Monad m => ParseClass -> Matcher m
 _match BSlash         = _bslash
 _match VQuote         = _vquote
 _match FSlash         = _fslash
@@ -47,7 +48,7 @@ _match (BMP  v q)     = _char v q
 _match (Surr v q)     = _surr v q
 
 -- | @Matcher@ that accepts all valid representations of a backslash character
-_bslash :: Matcher
+_bslash :: Monad m => Matcher m
 _bslash = P.pop >>= \case
             Bslash -> P.pop >>= \case
                 Bslash -> pass -- \\
@@ -62,7 +63,7 @@ _bslash = P.pop >>= \case
 -- As the hexadecimal encoding of @\"@ (@0x22@) is inherently case-insensitive, it is
 -- matched using the regular 'P.string' function rather than '_quad', which uses
 -- 'P.stringCI' internally.
-_vquote :: Matcher
+_vquote :: Monad m => Matcher m
 _vquote = P.pop >>= \case
             Bslash -> P.pop >>= \case
                 Quote -> pass -- \"
@@ -76,7 +77,7 @@ _vquote = P.pop >>= \case
 -- While this character has no inherent significance that would normally merit a separate
 -- parser, it is unique in that it can be encoded in JSON both by its ASCII representation (@\/@)
 -- and by its backslash-escaped ASCII representation (@\\\/@), which is true for no other character
-_fslash :: Matcher
+_fslash :: Monad m => Matcher m
 _fslash = P.pop >>= \case
             Slash  -> pass
             Bslash -> P.pop >>= \case
@@ -88,7 +89,7 @@ _fslash = P.pop >>= \case
 
 
 -- | @Matcher@ that accepts all valid representations of a directly-representable ASCII character
-_ascii :: Word8 -> Quad -> Matcher
+_ascii :: Monad m => Word8 -> Quad -> Matcher m
 _ascii w q = P.pop >>= \case
             w' | w' == w -> pass
             Bslash -> P.word8 Hex_u >> _quad q
@@ -96,7 +97,7 @@ _ascii w q = P.pop >>= \case
 {-# INLINE _ascii #-}
 
 -- | @Matcher@ that accepts all valid representations of an ASCII control character
-_ctr :: Word8 -> Quad -> Matcher
+_ctr :: Monad m => Word8 -> Quad -> Matcher m
 _ctr w q = P.pop >>= \case
             Slash -> P.pop >>= \case
                 w' | w `escapesTo` w' -> pass
@@ -106,7 +107,7 @@ _ctr w q = P.pop >>= \case
 {-# INLINE _ctr #-}
 
 -- | @Matcher@ that accepts all valid representations of UTF-16 characters within the BMP
-_char :: UnconBS -> Quad -> Matcher
+_char :: Monad m => UnconBS -> Quad -> Matcher m
 _char ~(w,t) q
     = P.pop >>= \case
         x | x == w -> mark $ P.string t
@@ -116,7 +117,7 @@ _char ~(w,t) q
         _    -> fail
 
 -- | @Matcher@ that accepts all valid representations of UTF-16 surrogate pairs
-_surr :: DeconBS -> QuadPair -> Matcher
+_surr :: Monad m => DeconBS -> QuadPair -> Matcher m
 _surr ~(w,t) (h,l)
     = P.pop >>= \case
         x | x == w -> mark $ mapM_ P.word8 t
@@ -125,13 +126,13 @@ _surr ~(w,t) (h,l)
             _    -> fail
         _    -> fail
     where
-        _qquad :: Quad -> Quad -> P.Parser Res
+        -- _qquad :: Quad -> Quad -> P.Parser m Res
         _qquad h l = do { _quad h; P.word8 Bslash; P.word8 Hex_u; _quad l }
         {-# INLINE _qquad #-}
 
 -- | parseMatch : attempt to match against pre-classified query key,
 --   skipping to end of current string if a non-match is found
-parseMatch :: [ParseClass] -> P.Parser Bool
+parseMatch :: Monad m => [ParseClass] -> P.Parser m Bool
 parseMatch [] = P.pop >>= \case
     Quote -> pure True
     _     -> False <$ skipToEndQ

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Benchmark where
 
@@ -8,12 +9,14 @@ import qualified Data.Attoparsec.ByteString as A
 
 import Data.Semigroup ((<>))
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad (void)
+import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import Data.ByteString (ByteString)
 
+import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
 import qualified Data.ByteString.Builder.Extra as D
 
@@ -25,11 +28,13 @@ import Data.Conduit ((.|))
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
 
+import Streaming (Of(..))
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
 
 import Data.Maybe (isJust, fromJust)
+import Data.Either (isRight, fromRight)
 
 import JParse
 import Parse
@@ -38,6 +43,7 @@ import qualified Parse.ReadAlt as Alt
 import qualified Parse.ReadZepto as Zep
 
 import qualified Parse.Parser.Zepto as Z
+import qualified Parse.Parser.ZeptoStream as ZS
 
 
 main :: IO ()
@@ -80,24 +86,40 @@ main = do
         , bench "Zepto" $ whnf (run' (keyToZepto "foo") $ build.fromJust) fooson
         ]
         -}
-     bgroup "lengths" $
-        [ bench "Conduit" $ nfIO conduitAct
-        , bench "Streaming" $ nfIO streamAct
+      bgroup "Zepto Parse Lines" $
+        [ bench "Zepto Conduit" $ nfIO (conduitAct "foo")
+        , bench "ZeptoStream" $ nfIO (streamAct "foo")
         ]
     ]
 
+conduitAct str = C.runResourceT $ C.runConduit $ C.sourceFile "heads.txt" .| C.linesUnboundedAscii .| zeptoC str .| C.mapC B.length .| C.sum
 
-conduitAct = C.runResourceT $ C.runConduit $ C.sourceFile "heads.txt" .| C.linesUnboundedAscii .| C.mapC B.length .| C.sum
-streamAct = C.runResourceT $ S.sum_ $ S.mapped BS8.length $ streamlines "heads.txt"
+zeptoC :: Monad m => String -> C.ConduitT ByteString ByteString m ()
+zeptoC str = C.mapC (run' (keyToZepto str) $ build.fromJust)
 
+streamAct str = C.runResourceT $ S.sum_ $ procZepto $ buildZepto $ trimZepto $ streamZepto str $ streamlines "heads.txt"
 
-streamZepto :: Monad m => S.Stream (BS8.ByteString m) m r -> S.Stream (Of (Either String (Maybe Builder))) m r
-streamZepto = S.mapped
+procZepto :: MonadIO m => S.Stream (Of ByteString) m r -> S.Stream (Of Int) m r
+procZepto = S.map B.length
 
-streamlines :: MonadResource m => String -> S.Stream (BS8.ByteString m) m r
-streamlines = BS8.lines $ BS.readFile "heads.txt"
+buildZepto :: MonadIO m => S.Stream (Of (Maybe Builder)) m r -> S.Stream (Of ByteString) m r
+buildZepto = S.map (build . fromJust) . S.filter isJust
 
+trimZepto :: MonadIO m => S.Stream (Of (Either String (Maybe Builder))) m r -> S.Stream (Of (Maybe Builder)) m r
+trimZepto = S.map (fromRight Nothing) . S.filter isRight
 
+-- streamZepto :: (MonadIO m, MonadIO m') => String -> S.Stream (BS8.ByteString m') m r -> S.Stream (Of (Either String (Maybe Builder))) m r
+streamZepto key = S.mapped $ parseStream (keyToStream key)
+
+-- parseStream :: MonadIO m => ZS.ZeptoT m (Maybe Builder) -> BS8.ByteString m r -> m (Of (Either String (Maybe Builder)) r)
+parseStream z bs = do
+  let bs' = void bs
+  val <- ZS.parseT z bs'
+  res <- BS.effects bs
+  return $ (val :> res)
+
+streamlines :: C.MonadResource m => String -> S.Stream (BS8.ByteString m) m ()
+streamlines = BS8.lines . BS.readFile
 
 run :: A.Parser a -> (a -> b) -> ByteString -> b
 run p f b = (\(A.Done _ x) -> f x) $ A.parse p b
@@ -148,7 +170,7 @@ _mid = (\n -> genObj "foo" (n`div`2) n)
 genObj :: ByteString -> Int -> Int -> ByteString
 genObj bs i n = build $  "{ " <> genObj' bs i n <> " }"
   where
-    genObj' :: ByteString -> Int -> Int -> D.Builder
+    genObj' :: ByteString -> Int -> Int -> Builder
     genObj' bs 0 1 = "\""<>D.byteString bs<>"\":\"bar\\f\\udead\\ubeef\""
     genObj' bs _ 1 = "\"baz\":\"bar\\f\\udead\\ubeef\""
     genObj' bs i n = genObj' bs i 1 <> ", " <> genObj' bs (i-1) (n-1)
@@ -156,20 +178,27 @@ genObj bs i n = build $  "{ " <> genObj' bs i n <> " }"
 
 
 
-build :: D.Builder -> ByteString
+build :: Builder -> ByteString
 build = L.toStrict . D.toLazyByteStringWith buildStrat L.empty
   where
     buildStrat = D.untrimmedStrategy 128 256
     {-# INLINE buildStrat #-}
 {-# INLINE build #-}
 
+buildM :: MonadIO m => Builder -> BS.ByteString m ()
+buildM = BS.toStreamingByteStringWith buildStrat
+  where
+    buildStrat = D.untrimmedStrategy 128 256
+    {-# INLINE buildStrat #-}
+{-# INLINE buildM #-}
 
 
-extract :: A.Result (Maybe D.Builder) -> Int
+
+extract :: A.Result (Maybe Builder) -> Int
 extract (A.Done _ (Just x)) = B.length $ build x
 extract _ = 0
 
-extract' :: Either String (Maybe D.Builder) -> Int
+extract' :: Either String (Maybe Builder) -> Int
 extract' (Right (Just x)) = B.length $ build x
 extract' _ = 0
 
@@ -187,3 +216,8 @@ keyToZepto str =
   let key = qkey [str]
       ckey = mapClass key
    in seekInObjZepto ckey
+
+keyToStream str =
+  let key = qkey [str]
+      ckey = mapClass key
+   in seekInObjZeptoStream ckey

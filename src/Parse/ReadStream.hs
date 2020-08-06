@@ -41,15 +41,13 @@ import           Parse.Parser.Stream (token, symbol)
 --   silently consumes end-quote character and any trailing whitespace
 --   implicitly requires that the first doublequote has been consumed
 --   any other pre-consumed characters will be omitted from the parser result
-parseToEndQ :: Monad m => Z.Parser m Builder
+parseToEndQ :: Z.Parser Builder
 parseToEndQ = parseQBuilder <* Z.skipSpace
   where
     parseQBuilder = go
       where
         go = do
-          bs <- Z.takeWhile isSimple
-          bs' <- lift $ BS.toLazy_ bs
-          let bld = D.lazyByteString bs'
+          bld <- D.byteString <$> Z.takeWhile isSimple
           Z.pop >>= \case
               Quote  -> pure bld
               _      -> do
@@ -63,10 +61,10 @@ parseToEndQ = parseQBuilder <* Z.skipSpace
 --   are orphaned from associated preceding unescaped backslashes
 --
 --   does not check for EOF or invalid backslash escapes
-skipToEndQ :: Monad m => Z.Parser m ()
+skipToEndQ :: Z.Parser ()
 skipToEndQ = skipQUnit >> Z.skipSpace
   where
-    skipQUnit :: Monad m => Z.Parser m ()
+    skipQUnit :: Z.Parser ()
     skipQUnit = go
       where
         go = do
@@ -78,7 +76,7 @@ skipToEndQ = skipQUnit >> Z.skipSpace
 {-# INLINE skipToEndQ #-}
 
 -- | basic parser that interprets escaped characters (except backslash)
-parseEscaped :: Monad m => Z.Parser m Builder
+parseEscaped :: Z.Parser Builder
 parseEscaped =
   Z.pop >>= \case
     e | escAtom e -> pure $ D.word8 e
@@ -88,9 +86,9 @@ parseEscaped =
 {-# INLINE parseEscaped #-}
 
 -- | parses uXXXX hexcodes (without initial u)
-parseHex :: Monad m => Z.Parser m ByteString
+parseHex :: Z.Parser ByteString
 parseHex = do
-  q <- Z.take 4 >>= S.lift . BS.toStrict_
+  q <- Z.take 4
   if B.all isHexChar q
      then pure q
      else mzero
@@ -100,7 +98,7 @@ parseHex = do
 --   does not perform any sanity validation
 --
 --   consumes leading word8 of value before calling type-specific parsers
-skipValue :: Monad m => Z.Parser m ()
+skipValue :: Z.Parser ()
 skipValue =
     Z.pop >>= \case
         Quote -> skipToEndQ       -- leading '"' implies string
@@ -124,7 +122,7 @@ skipValue =
 
 -- | skipArray : skips over contents of JSON-formatted array value,
 --               ignoring internal whitespace
-skipArray :: Monad m => Z.Parser m ()
+skipArray :: Z.Parser ()
 skipArray = do
     Z.skipSpace
     Z.peek >>= \case
@@ -144,7 +142,7 @@ skipArray = do
 
 -- | skipNumber : numbers contain no special characters and can be skipped
 --   efficiently without validation.
-skipNumber :: Monad m => Bool -> Z.Parser m ()
+skipNumber :: Bool -> Z.Parser ()
 skipNumber wantDigit = Z.skipWhile nonTerminal >> Z.skipSpace
   where
     nonTerminal :: Word8 -> Bool
@@ -155,7 +153,7 @@ skipNumber wantDigit = Z.skipWhile nonTerminal >> Z.skipSpace
     {-# INLINE nonTerminal #-}
 
 -- | efficiently skips to end of current object without validating sanity of contents
-skipRestObj :: Monad m => Z.Parser m ()
+skipRestObj :: Z.Parser ()
 skipRestObj = do
     Z.skipWhile $ not . isSpecial
     Z.pop >>= \case
@@ -166,7 +164,7 @@ skipRestObj = do
         _    -> mzero
 
 -- | efficiently skips to end of current array without validating sanity of contents
-skipRestArr :: Monad m => Z.Parser m ()
+skipRestArr :: Z.Parser ()
 skipRestArr = do
     Z.skipWhile $ not . isSpecial
     Z.pop >>= \case
@@ -177,7 +175,7 @@ skipRestArr = do
         _    -> mzero
 
 -- | generic fast-skip to matching terminal symbol
-skipQuick :: Monad m => Word8 -> Z.Parser m ()
+skipQuick :: Word8 -> Z.Parser ()
 skipQuick end = do
     Z.skipWhile $ not . isSpecial
     Z.pop >>= \w ->
@@ -192,7 +190,7 @@ skipQuick end = do
 -- | Skip any trailing list of object keys and values and final close-brace
 -- starting at the initial comma.
 --
-skipTail :: Monad m => Z.Parser m ()
+skipTail :: Z.Parser ()
 skipTail = Z.pop >>= \case
     Comma  -> Z.skipSpace >> Z.word8 Quote *> skipKeyVals
     RBrace -> pure ()
@@ -201,14 +199,14 @@ skipTail = Z.pop >>= \case
 -- | Starting just after the double-quote of the first key, Skip key-value
 -- pairs to the end of the object, including final close-brace.
 --
-skipKeyVals :: Monad m => Z.Parser m ()
+skipKeyVals :: Z.Parser ()
 skipKeyVals = do
     skipToEndQ >> symbol Colon >> skipValue
     skipTail
 
 -- | Skip object including final close-brace and trailing whitespace.
 --
-skipObject :: Monad m => Z.Parser m ()
+skipObject :: Z.Parser ()
 skipObject = Z.skipSpace >> Z.pop >>= \case
     RBrace -> Z.skipSpace
     Quote  -> skipKeyVals >> Z.skipSpace

@@ -34,6 +34,8 @@ library:
   source-dirs: src
   ghc-options:
     - -O2
+    - -fprof-auto
+    - -fprof-cafs
 
 
 executables:

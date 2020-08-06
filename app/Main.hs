@@ -1,15 +1,15 @@
 module Main (main) where
 
 import qualified Conduit as C (stdinC)
-import qualified Data.Attoparsec.ByteString as A (parse)
 import qualified System.Environment as Sys
 
 import Parse (mapClass)
-import JParse (qkey, seekInObj, runParse, putLnBuilderC)
+import JParse (qkey, seekInObjZeptoStream, runZepto, putLnBuilderC)
+import qualified Parse.Parser.ZeptoStream as ZS
 
 main :: IO ()
 main = do
    key <- qkey <$> Sys.getArgs
    let ckey = mapClass $! key
-       parser = A.parse (seekInObj ckey)
-   runParse parser C.stdinC
+       parser = ZS.parseR (seekInObjZeptoStream ckey)
+   runZepto parser C.stdinC

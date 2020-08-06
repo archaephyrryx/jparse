@@ -70,6 +70,14 @@ runParse = runParseWithC putLnBuilderC
 {-# INLINE runParse #-}
 
 -- | Run 'parseC' using a given parser over arbitrary upstream
+-- and output the results using 'putLnBuilderC'
+runZepto :: (ByteString -> ZS.Result (Maybe Builder))
+          -> C.ConduitT () ByteString IO ()
+          -> IO ()
+runZepto = runZeptoWithC putLnBuilderC
+{-# INLINE runZepto #-}
+
+-- | Run 'parseC' using a given parser over arbitrary upstream
 -- and output the results using arbitrary function
 runParseWithC :: (MonadIO m, MonadFail m)
               => C.ConduitT (Maybe Builder) Void m a -- ^ sink on Maybe Builder values
@@ -89,6 +97,27 @@ runParseWithC mc parser source = C.runConduit $ source .| runParseC .| mc
                else parseC streamEmpty cleanState parser (parser bs')
       _       -> pure ()
 {-# INLINE runParseWithC #-}
+
+-- | Run 'zeptoC' using a given parser over arbitrary upstream
+-- and output the results using arbitrary function
+runZeptoWithC :: (MonadIO m, MonadFail m)
+              => C.ConduitT (Maybe Builder) Void m a -- ^ sink on Maybe Builder values
+              -> (ByteString -> ZS.Result (Maybe Builder)) -- ^ parse function
+              -> C.ConduitT () ByteString m () -- ^ input conduit
+              -> m a
+runZeptoWithC mc parser source = C.runConduit $ source .| runZeptoC .| mc
+  where
+    {-# INLINE runZeptoC #-}
+    runZeptoC = C.await >>= \case
+      Just bs ->
+        let bs' = trim bs
+            streamEmpty = False
+            cleanState = True
+         in if B.null bs'
+               then runZeptoC
+               else zeptoC streamEmpty cleanState parser (parser bs')
+      _       -> pure ()
+{-# INLINE runZeptoWithC #-}
 
 
 -- | Conduit that feeds upstream ByteStrings into a Parser and yields Maybe Builders from successful parses
@@ -130,6 +159,51 @@ parseC atEnd clean parser res =
                     -> parseC False clean parser $! res -- retry upstream when output only whitespace
     A.Fail i ctx e -> fail $ show (i, ctx, e)
 
+
+-- | Conduit that feeds upstream ByteStrings into a ZeptoStream Parser and yields Maybe Builders from successful parses
+--
+--   Recurses until end of output is reached and retrieves additonal ByteString
+--   output from upstream each pass, until parser yields Done or Fail result.
+--
+--   Designed around 'seekInObj', which has the property that as soon as a positive or
+--   negative result has been decided for each JSON object encountered, the remainder of
+--   that JSON object is skipped.
+zeptoC :: (MonadIO m, MonadFail m)
+       => Bool -- ^ has upstream been fully consumed
+       -> Bool -- ^ is the parse-state clean (not mid-parse)
+       -> (ByteString -> ZS.Result (Maybe Builder)) -- ^ primary parser
+       -> ZS.Result (Maybe Builder) -- ^ most recent parse result
+       -> C.ConduitT ByteString (Maybe Builder) m ()
+zeptoC atEnd clean parser res =
+  case res of
+    ZS.OK result st -> do
+      let leftover = ZS.fromState st
+          clean' = not atEnd -- we are mid-parse if upstream is exhausted
+      C.yield result
+      if | more <- trim leftover
+         , not $ B.null more -> zeptoC atEnd clean' parser $! parser more -- recurse on non-empty leftover bytestring
+         | atEnd -> pure () -- upstream fully consumed and no leftover input
+         | otherwise -> C.await >>= \case
+            Nothing -> pure ()
+            Just bs | !bs' <- trim bs
+                    -> zeptoC False (B.null bs') parser $! (parser $! bs') -- recurse over upstream
+    ZS.Cont cont
+      | atEnd && clean -> pure ()
+      | atEnd -> zeptoC atEnd clean parser $! cont B.empty -- continue on empty bytestring when mid-parse
+      | otherwise
+      -> C.await >>= \case
+            Nothing -> zeptoC True clean parser $! res -- mark end-of-input and retry
+            Just bs | more <- trim bs
+                    , not $ B.null more
+                    -> zeptoC False False parser $! cont more -- continue on upstream ByteString
+                    | otherwise
+                    -> zeptoC False clean parser $! res -- retry upstream when output only whitespace
+    ZS.Fail str -> fail str
+
+
+
+
+
 -- | Extract bytestring-valued key from a JSON object
 --
 --   Argument is a list of ParseClass values corresponding to
@@ -164,7 +238,7 @@ seekInObjZepto cs = do
 {-# INLINE seekInObjZepto #-}
 
 -- | version using 'getStringValueZeptoStream'
-seekInObjZeptoStream :: Monad m => [ParseClass] -> ZS.Parser m (Maybe Builder)
+seekInObjZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
 seekInObjZeptoStream cs = do
     ZS.symbol LBrace
     ZS.pop >>= \case
@@ -220,7 +294,7 @@ getStringValueZepto ckey = do
 {-# INLINE getStringValueZepto #-}
 
 -- | version using 'ZepS.parseMatch' and Parse.ReadStream variant functions
-getStringValueZeptoStream :: Monad m => [ParseClass] -> ZS.Parser m (Maybe Builder)
+getStringValueZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
 getStringValueZeptoStream ckey = do
     this <- ZepS.parseMatch ckey
     if this

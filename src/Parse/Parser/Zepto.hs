@@ -163,7 +163,6 @@ skipWhile :: Monad m => (Word8 -> Bool) -> ZeptoT m ()
 skipWhile p = do
   t <- gets (B.dropWhile p . input)
   put (S t)
-  pure ()
 {-# INLINE skipWhile #-}
 
 -- | Consume @n@ bytes of input.
@@ -180,7 +179,7 @@ skip :: Monad m => Int -> ZeptoT m ()
 skip !n = do
   s <- gets input
   if B.length s >= n
-    then put (S (B.unsafeDrop n s)) >> pure ()
+    then put (S (B.unsafeDrop n s))
     else fail "insufficient input"
 {-# INLINE skip #-}
 
@@ -206,7 +205,7 @@ word8 w = do
   i <- gets input
   if not $! B.null i
     then if w == B.unsafeHead i
-      then put (S (B.unsafeTail i)) >> pure ()
+      then put (S (B.unsafeTail i))
       else fail "word8"
     else fail "insufficient input"
 {-# INLINE word8 #-}
@@ -216,7 +215,7 @@ string :: Monad m => ByteString -> ZeptoT m ()
 string s = do
   i <- gets input
   if s `B.isPrefixOf` i
-    then put (S (B.unsafeDrop (B.length s) i)) >> pure ()
+    then put (S (B.unsafeDrop (B.length s) i))
     else fail "string"
 {-# INLINE string #-}
 
@@ -227,7 +226,7 @@ stringCI s = do
   let n = B.length s
   if n <= B.length i
     then if s `lowEq` (B.unsafeTake n i)
-      then put (S (B.unsafeDrop (B.length s) i)) >> pure ()
+      then put (S (B.unsafeDrop (B.length s) i))
       else fail "stringCI"
     else fail "insufficient input"
 {-# INLINE stringCI #-}

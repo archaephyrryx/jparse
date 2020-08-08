@@ -71,7 +71,7 @@ runParse = runParseWithC putLnBuilderC
 
 -- | Run 'parseC' using a given parser over arbitrary upstream
 -- and output the results using 'putLnBuilderC'
-runZepto :: (ByteString -> ZS.Result (Maybe Builder))
+runZepto :: (ByteString -> Z.Result (Maybe Builder))
           -> C.ConduitT () ByteString IO ()
           -> IO ()
 runZepto = runZeptoWithC putLnBuilderC
@@ -100,22 +100,23 @@ runParseWithC mc parser source = C.runConduit $ source .| runParseC .| mc
 
 -- | Run 'zeptoC' using a given parser over arbitrary upstream
 -- and output the results using arbitrary function
+--
+-- Unlike runParseWithC, this splits input into lines before feeding
+-- to downstream parser
 runZeptoWithC :: (MonadIO m, MonadFail m)
               => C.ConduitT (Maybe Builder) Void m a -- ^ sink on Maybe Builder values
-              -> (ByteString -> ZS.Result (Maybe Builder)) -- ^ parse function
+              -> (ByteString -> Z.Result (Maybe Builder)) -- ^ parse function
               -> C.ConduitT () ByteString m () -- ^ input conduit
               -> m a
-runZeptoWithC mc parser source = C.runConduit $ source .| runZeptoC .| mc
+runZeptoWithC mc parser source = C.runConduit $ source .| C.linesUnboundedAsciiC .| runZeptoC .| mc
   where
     {-# INLINE runZeptoC #-}
     runZeptoC = C.await >>= \case
       Just bs ->
         let bs' = trim bs
-            streamEmpty = False
-            cleanState = True
          in if B.null bs'
                then runZeptoC
-               else zeptoC streamEmpty cleanState parser (parser bs')
+               else zeptoC parser (parser bs') >> runZeptoC
       _       -> pure ()
 {-# INLINE runZeptoWithC #-}
 
@@ -169,40 +170,13 @@ parseC atEnd clean parser res =
 --   negative result has been decided for each JSON object encountered, the remainder of
 --   that JSON object is skipped.
 zeptoC :: (MonadIO m, MonadFail m)
-       => Bool -- ^ has upstream been fully consumed
-       -> Bool -- ^ is the parse-state clean (not mid-parse)
-       -> (ByteString -> ZS.Result (Maybe Builder)) -- ^ primary parser
-       -> ZS.Result (Maybe Builder) -- ^ most recent parse result
+       => (ByteString -> Z.Result (Maybe Builder)) -- ^ primary parser
+       -> Z.Result (Maybe Builder) -- ^ most recent parse result
        -> C.ConduitT ByteString (Maybe Builder) m ()
-zeptoC atEnd clean parser res =
+zeptoC parser res =
   case res of
-    ZS.OK result st -> do
-      let leftover = ZS.fromState st
-          clean' = not atEnd -- we are mid-parse if upstream is exhausted
-      C.yield result
-      if | more <- trim leftover
-         , not $ B.null more -> zeptoC atEnd clean' parser $! parser more -- recurse on non-empty leftover bytestring
-         | atEnd -> pure () -- upstream fully consumed and no leftover input
-         | otherwise -> C.await >>= \case
-            Nothing -> pure ()
-            Just bs | !bs' <- trim bs
-                    -> zeptoC False (B.null bs') parser $! (parser $! bs') -- recurse over upstream
-    ZS.Cont cont
-      | atEnd && clean -> pure ()
-      | atEnd -> zeptoC atEnd clean parser $! cont B.empty -- continue on empty bytestring when mid-parse
-      | otherwise
-      -> C.await >>= \case
-            Nothing -> zeptoC True clean parser $! res -- mark end-of-input and retry
-            Just bs | more <- trim bs
-                    , not $ B.null more
-                    -> zeptoC False False parser $! cont more -- continue on upstream ByteString
-                    | otherwise
-                    -> zeptoC False clean parser $! res -- retry upstream when output only whitespace
-    ZS.Fail str -> fail str
-
-
-
-
+    Z.OK result st -> C.yield result
+    Z.Fail str -> fail str
 
 -- | Extract bytestring-valued key from a JSON object
 --

@@ -12,8 +12,9 @@
 module Parse.Parser.Zepto
   (
     Parser
-  , Result
+  , Result(..)
   , ZeptoT
+  , parseR
   , parse
   , parseT
   , atEnd
@@ -76,7 +77,6 @@ instance MonadIO m => MonadIO (ZeptoT m) where
 instance Monad m => Monad (ZeptoT m) where
     return = pure
     {-# INLINE return #-}
-
     m >>= k   = Parser $ \s -> do
       result <- runParser m s
       case result of
@@ -118,6 +118,11 @@ put :: Monad m => S -> ZeptoT m ()
 put s = Parser $ \_ -> return (OK () s)
 {-# INLINE put #-}
 
+-- | Run a parser and return raw result
+parseR :: Parser a -> ByteString -> Result a
+parseR p bs = runIdentity (runParser p (S bs))
+{-# INLINE parseR #-}
+
 -- | Run a parser.
 parse :: Parser a -> ByteString -> Either String a
 parse p bs = case runIdentity (runParser p (S bs)) of
@@ -157,6 +162,7 @@ takeWhile p = do
   put (S t)
   pure h
 {-# INLINE takeWhile #-}
+{-# SCC takeWhile #-}
 
 -- | Skip input while the predicate returns 'True'
 skipWhile :: Monad m => (Word8 -> Bool) -> ZeptoT m ()
@@ -164,6 +170,7 @@ skipWhile p = do
   t <- gets (B.dropWhile p . input)
   put (S t)
 {-# INLINE skipWhile #-}
+{-# SCC skipWhile #-}
 
 -- | Consume @n@ bytes of input.
 take :: Monad m => Int -> ZeptoT m ByteString
@@ -173,6 +180,7 @@ take !n = do
     then put (S (B.unsafeDrop n s)) >> pure (B.unsafeTake n s)
     else fail "insufficient input"
 {-# INLINE take #-}
+{-# SCC take #-}
 
 -- | Skip @n@ bytes of input.
 skip :: Monad m => Int -> ZeptoT m ()
@@ -182,6 +190,7 @@ skip !n = do
     then put (S (B.unsafeDrop n s))
     else fail "insufficient input"
 {-# INLINE skip #-}
+{-# SCC skip #-}
 
 peek :: Monad m => ZeptoT m (Maybe Word8)
 peek = do
@@ -190,6 +199,7 @@ peek = do
      then pure (Just $ B.unsafeHead s)
      else pure Nothing
 {-# INLINE peek #-}
+{-# SCC peek #-}
 
 pop :: Monad m => ZeptoT m Word8
 pop = do
@@ -198,6 +208,7 @@ pop = do
      then put (S (B.unsafeTail s)) >> pure (B.unsafeHead s)
      else fail "insufficient input"
 {-# INLINE pop #-}
+{-# SCC pop #-}
 
 
 word8 :: Monad m => Word8 -> ZeptoT m ()
@@ -209,6 +220,7 @@ word8 w = do
       else fail "word8"
     else fail "insufficient input"
 {-# INLINE word8 #-}
+{-# SCC word8 #-}
 
 -- | Match a string exactly.
 string :: Monad m => ByteString -> ZeptoT m ()
@@ -218,6 +230,7 @@ string s = do
     then put (S (B.unsafeDrop (B.length s) i))
     else fail "string"
 {-# INLINE string #-}
+{-# SCC string #-}
 
 -- | Match a string case-insensitively.
 stringCI :: Monad m => ByteString -> ZeptoT m ()
@@ -230,6 +243,7 @@ stringCI s = do
       else fail "stringCI"
     else fail "insufficient input"
 {-# INLINE stringCI #-}
+{-# SCC stringCI #-}
 
 -- b1 and b2 must be of same non-zero length
 lowEq :: ByteString -> ByteString -> Bool
@@ -239,6 +253,7 @@ lowEq b1 b2 = B.map toLower b1 == B.map toLower b2
     toLower w | w >= 65 && w <= 90 = w + 32
               | otherwise          = w
 {-# INLINE lowEq #-}
+{-# SCC lowEq #-}
 
 -- | Indicate whether the end of the input has been reached.
 atEnd :: Monad m => ZeptoT m Bool

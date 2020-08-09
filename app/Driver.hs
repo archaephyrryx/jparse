@@ -13,6 +13,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Char8 as S8
 import Data.ByteString (ByteString)
 
 import Data.ByteString.Builder (Builder)
@@ -33,7 +34,7 @@ import qualified Streaming.Prelude as S
 
 
 import Data.Maybe (isJust, fromJust, mapMaybe)
-import Data.Either (isRight, fromRight)
+import Data.Either (isRight, fromRight, isLeft, fromLeft)
 import Data.List (stripPrefix)
 
 import JParse hiding (zeptoC)
@@ -47,7 +48,7 @@ import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser.ZeptoStream as ZS
 
 
-data Mode = BlockMode | LineMode deriving (Eq)
+data Mode = BlockMode | LineMode | DebugMode deriving (Eq)
 
 getKeyMode :: [String] -> (ByteString, Mode)
 getKeyMode xs = (qkey xs, getMode xs)
@@ -59,6 +60,7 @@ getMode xs =
     [] -> BlockMode
     x:_ -> if | x == "line" -> LineMode
               | x == "block" -> BlockMode
+              | x == "debug" -> DebugMode
               | otherwise -> error $ "unrecognized mode \""++x++"\""
 {-# INLINE getMode #-}
 
@@ -73,25 +75,52 @@ zeptoC str = C.mapC (run' (keyToZepto str) $ build.fromJust)
 streamZepto :: MonadIO m => Z.Parser (Maybe Builder) -> m ()
 streamZepto z = S.mapM_ putLnBuilder $ trimZepto $ streamZ z streamlines
 
+debugZepto :: MonadIO m => Z.Parser (Maybe Builder) -> m ()
+debugZepto z = S.mapM_ (liftIO . Prelude.putStrLn) $ debugPrint $ streamZ z streamlines
+-- debugZepto z = linestream $ streamlines
+
+debugPrint :: MonadIO m
+           => S.Stream (Of (Either String (Maybe Builder))) m r
+           -> S.Stream (Of String) m r
+debugPrint = S.map (either ("Left>"++) buildString)
+
+buildString Nothing = "Right>Nothing"
+buildString (Just d) = "Right>Just>" ++ S8.unpack (build d)
+
 trimZepto :: MonadIO m => S.Stream (Of (Either String (Maybe Builder))) m r -> S.Stream (Of (Maybe Builder)) m r
 trimZepto = S.map (fromRight Nothing) . S.filter isRight
 
-{- streamZ :: MonadIO m => Z.Parser (Maybe Builder)
+purgeZepto :: MonadIO m => S.Stream (Of (Either String (Maybe Builder))) m r -> S.Stream (Of String) m r
+purgeZepto = S.map (fromLeft "weird...") . S.filter isLeft
+
+streamZ :: MonadIO m => Z.Parser (Maybe Builder)
         -> S.Stream (BS8.ByteString m) m r
-        -> S.Stream (Of (Either String (Maybe Builder))) m r -}
-streamZ z = S.mapped (streamParse z)
+        -> S.Stream (Of (Either String (Maybe Builder))) m r
+streamZ z = S.map (parseStream z) . S.mapped BS.toLazy
+
+parseStream :: Z.Parser (Maybe Builder)
+            -> L.ByteString
+            -> Either String (Maybe Builder)
+parseStream z = Z.parse z . L.toStrict
 
 streamParse :: MonadIO m
             => Z.Parser (Maybe Builder)
             -> BS8.ByteString m r
             -> m (Of (Either String (Maybe Builder)) r)
 streamParse z bs = do
-  bs' <- BS.toStrict_ (void bs)
+  bs' <- BS.toStrict_ (bsVoid bs)
   let val = Z.parse z bs'
   res <- BS.effects bs
   return $ val :> res
 
-streamlines :: C.MonadIO m => S.Stream (BS8.ByteString m) m ()
+bsVoid :: Monad m => BS8.ByteString m r -> BS8.ByteString m ()
+bsVoid = BS8.takeWhile (const True)
+{-# INLINE bsVoid #-}
+
+linestream :: MonadIO m => S.Stream (BS8.ByteString m) m () -> m ()
+linestream = BS.stdout . BS8.unlines
+
+streamlines :: MonadIO m => S.Stream (BS8.ByteString m) m ()
 streamlines = BS8.lines BS.stdin
 
 run :: A.Parser a -> (a -> b) -> ByteString -> b

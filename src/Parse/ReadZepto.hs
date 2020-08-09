@@ -142,7 +142,12 @@ skipNumber wantDigit = Z.skipWhile nonTerminal >> Z.skipSpace
     {-# INLINE nonTerminal #-}
 
 -- | efficiently skips to end of current object without validating sanity of contents
+--
+--   XXX: optimized for line-mode in which it is possible to ignore rest of input
 skipRestObj :: Z.Parser ()
+skipRestObj = pure ()
+{-# INLINE skipRestObj #-}
+{-
 skipRestObj = do
     Z.skipWhile $ not . isSpecial
     Z.pop >>= \case
@@ -151,6 +156,7 @@ skipRestObj = do
         LBracket -> skipRestArr >> skipRestObj
         LBrace   -> skipRestObj >> skipRestObj
         _    -> mzero
+-}
 
 -- | efficiently skips to end of current array without validating sanity of contents
 skipRestArr :: Z.Parser ()

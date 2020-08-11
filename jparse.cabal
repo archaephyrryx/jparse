@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 72175c7cf3d3fb9fae05df0186d7c9a45f94c3a2b192b870a2b26464187e0809
+-- hash: 36644905d66cc9c7004acbe4df2e3b79ebeebee6cb666467fe0816642af2940d
 
 name:           jparse
 version:        0.1.0.0
@@ -56,6 +56,7 @@ library
     , base16-bytestring
     , bytestring
     , conduit
+    , stm
     , streaming
     , streaming-bytestring
     , text
@@ -66,7 +67,6 @@ executable jparse-exe
   main-is: Main.hs
   other-modules:
       Driver
-      MainTest
       Paths_jparse
   hs-source-dirs:
       app
@@ -78,6 +78,7 @@ executable jparse-exe
     , bytestring
     , conduit
     , jparse
+    , stm
     , streaming
     , streaming-bytestring
     , text
@@ -101,6 +102,7 @@ test-suite jparse-test
     , conduit
     , criterion
     , jparse
+    , stm
     , streaming
     , streaming-bytestring
     , text

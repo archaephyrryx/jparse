@@ -8,8 +8,8 @@ import qualified Data.Attoparsec.ByteString as A (parse)
 
 import Parse (mapClass, ParseClass)
 import JParse (seekInObj', seekInObjZepto, runParse, putLnBuilderC)
-import Driver (getKeyMode, Mode(..), streamZepto, debugZepto)
-import qualified Parse.Parser.ZeptoStream as ZS
+import Driver (streamZepto, debugZepto)
+import Options (getKeyMode, Mode(..))
 
 
 main :: IO ()

@@ -1,4 +1,7 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Options where
 
@@ -8,6 +11,41 @@ import Data.List (stripPrefix)
 import Data.Maybe (isJust, fromJust, mapMaybe)
 
 import JParse (qkey)
+
+import Options.Applicative
+import Data.Semigroup ((<>))
+
+
+type Qstring = ByteString
+
+data Options =
+  Options { query :: Qstring
+          , mode  :: Mode
+          }
+
+getOptions :: Parser Options
+getOptions = do
+  query <- queryParse
+  mode  <-  modeParse
+  return Options{..}
+
+queryParse :: Parser Qstring
+queryParse = do
+  s <- argument str ( metavar "QUERY KEY"
+                    <> showDefault
+                    <> value "name"
+                    )
+  return $ qkey s
+
+modeParse :: Parser Mode
+modeParse =
+  option (maybeReader readMode)
+    ( long "mode"
+    <> help "mode in which parser pipeline operates, conditional on input data format: (line|block|debug)"
+    <> showDefault
+    <> value BlockMode
+    <> metavar "MODE"
+    )
 
 -- * Command-line specification of input processing mode
 
@@ -23,17 +61,14 @@ data Mode = BlockMode -- ^ Attoparsec inside Conduit
           | DebugMode -- ^ Zepto inside Streaming (verbose)
           deriving (Eq)
 
-getKeyMode :: [String] -> (ByteString, Mode)
-getKeyMode xs = (qkey xs, getMode xs)
-{-# INLINE getKeyMode #-}
+instance Show Mode where
+  show BlockMode = "block"
+  show LineMode = "line"
+  show DebugMode = "debug"
 
-getMode :: [String] -> Mode
-getMode xs =
-  case mapMaybe (stripPrefix "--mode=") xs of
-    [] -> BlockMode
-    x:_ -> if | x == "line" -> LineMode
-              | x == "block" -> BlockMode
-              | x == "debug" -> DebugMode
-              | otherwise -> error $ "unrecognized mode \""++x++"\""
-{-# INLINE getMode #-}
-
+readMode :: String -> Maybe Mode
+readMode x =
+  if | x == "line"  -> Just LineMode
+     | x == "block" -> Just BlockMode
+     | x == "debug" -> Just DebugMode
+     | otherwise   -> Nothing

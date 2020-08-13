@@ -38,12 +38,10 @@ import qualified Parse.Parser.ZeptoStream as ZS
 import qualified Parse.Parser.Stream as ZS
 
 
--- | query key function: extracts a query bytestring from command line argument list
---   default if no arguments found is "name" for historical reasons
-qkey :: [String] -> ByteString
-qkey = \case
-    a:_ -> T.encodeUtf8 . T.pack $ a
-    _   -> "name"
+-- | query key function: performs UTF-8 'ByteString' encoding
+-- on a query-key read from the command line as a 'String'.
+qkey :: String -> ByteString
+qkey = T.encodeUtf8 . T.pack
 {-# INLINE qkey #-}
 
 -- | print a Builder to stdout with a trailing newline

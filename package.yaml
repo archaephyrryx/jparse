@@ -25,7 +25,6 @@ dependencies:
 - bytestring
 - base16-bytestring
 - conduit
-- stm
 - streaming
 - streaming-bytestring
 - text
@@ -50,6 +49,8 @@ executables:
     - -O2
     dependencies:
     - jparse
+    - optparse-applicative
+    - stm
 
 tests:
   jparse-test:

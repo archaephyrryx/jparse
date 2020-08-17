@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternSynonyms #-}
-module Final (toVector, toVectorIO) where
+module Final (toVector, toVectorIO, toVectorsIO) where
 
 import Data.Monoid (Monoid(..))
 import Data.Semigroup ((<>))
@@ -41,6 +41,26 @@ unconsFinalIO ret = loop
       Step (a :> rest) -> pure $ Just (a, rest)
 {-# INLINE unconsFinalIO #-}
 
+{-
+unconsEvery :: Monad m => Stream (Of a) m r -> StateT (Stream (Of a) m r) m (Maybe (a, Stream (Of a) m r))
+unconsEvery = loop
+  where
+    loop stream = case stream of
+      Return r -> put stream >> pure Nothing
+      Effect m -> lift m >>= loop
+      Step (a :> rest) -> put rest >> pure $ Just (a, rest)
+{-# INLINE unconsEvery #-}
+-}
+
+unconsEveryIO :: MonadIO m => IORef (Stream (Of a) m r) -> Stream (Of a) m r -> m (Maybe (a, Stream (Of a) m r))
+unconsEveryIO ret = loop
+  where
+    loop stream = case stream of
+      Return r -> liftIO (writeIORef ret stream) >> pure Nothing
+      Effect m -> m >>= loop
+      Step (a :> rest) -> liftIO (writeIORef ret rest) >> pure (Just (a, rest))
+{-# INLINE unconsEveryIO #-}
+
 toVector :: Monad m => Int -> Stream (Of a) m r -> m (Of (Vector a) r)
 toVector size st = evalStateT go (error "toVector: no state to get")
   where
@@ -57,3 +77,26 @@ toVectorIO size st = do
   ret <- liftIO $ readIORef ref
   return (vec :> ret)
 {-# INLINE toVectorIO #-}
+
+{- XXX: unimplemented due to hoisting
+toVectors :: Monad m => Int -> Stream (Of a) m r -> Stream (Of (Vector a)) m r
+toVectors size st = evalStateT go (error "toVector: no state to get")
+  where
+    go = do
+      vec <- V.unfoldrNM size unconsFinal st
+      ret <- get
+      return (vec :> ret)
+{-# INLINE toVectors #-}
+-}
+
+toVectorsIO :: MonadIO m => Int -> Stream (Of a) m r -> Stream (Of (Vector a)) m r
+toVectorsIO size = go
+  where
+    go (Return r) = Return r
+    go stream = do
+      ref <- liftIO $ newIORef (pure undefined)
+      vec <- lift $ V.unfoldrNM size (unconsEveryIO ref) stream
+      rest <- liftIO $ readIORef ref
+      S.yield vec
+      go rest
+{-# INLINE toVectorsIO #-}

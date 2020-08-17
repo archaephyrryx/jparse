@@ -49,7 +49,7 @@ import qualified Parse.Parser.Zepto as Z
 import qualified Parse.ReadStream as ZepS
 import qualified Parse.Parser.ZeptoStream as ZS
 
-import Final (toVector, toVectorIO)
+import Final (toVector, toVectorIO, toVectorsIO)
 
 
 import Data.Vector (Vector)
@@ -218,21 +218,9 @@ chunkStream = chunksOf nLines $ mapped BS.toLazy streamlines
 listStream :: Stream (Of [L.ByteString]) IO ()
 listStream = mapped S.toList chunkStream
 
-
 vecStream :: Stream (Of (Vector L.ByteString)) IO ()
-vecStream = mapped (toVector nLines) chunkStream
-{-
-vecStream = go $ mapped BS.toLazy streamlines
-  where
-    go :: Stream (Of L.ByteString) IO () -> Stream (Of (Vector L.ByteString)) IO ()
-    go (Return _) = pure ()
-    go str = do
-      let ht = S.splitAt nLines str
-      vec <- lift $ V.unfoldrNM nLines S.uncons ht
-      t <- lift $ S.effects ht
-      S.yield vec
-      go t
--}
+--vecStream = mapped (toVectorIO nLines) chunkStream
+vecStream = toVectorsIO nLines $ mapped BS.toLazy streamlines
 
 toVector' :: Monad m
           => Stream (Of a) m r

@@ -182,8 +182,8 @@ countParse' str inp =
 
 countZepto :: String -> String -> IO Int
 countZepto str inp =
-  let parser = keyToStream str
-   in C.runResourceT $ runZeptoWithC (C.lengthIfC isJust) (ZS.parseR parser) (C.sourceFile inp)
+  let parser = keyToZepto str
+   in C.runResourceT $ runZeptoWithC (C.lengthIfC isJust) (Z.parseR parser) (C.sourceFile inp)
 
 
 _count = 100000
@@ -243,21 +243,21 @@ extract' (Right (Just x)) = B.length $ build x
 extract' _ = 0
 
 keyToParser str =
-  let key = qkey [str]
+  let key = qkey str
       ckey = mapClass key
    in seekInObj ckey
 
 keyToParser' str =
-  let key = qkey [str]
+  let key = qkey str
       ckey = mapClass key
    in seekInObj' ckey
 
 keyToZepto str =
-  let key = qkey [str]
+  let key = qkey str
       ckey = mapClass key
    in seekInObjZepto ckey
 
 keyToStream str =
-  let key = qkey [str]
+  let key = qkey str
       ckey = mapClass key
    in seekInObjZeptoStream ckey

@@ -26,7 +26,7 @@ main = do
   let ckey = mapClass $! query
   case mode of
     BlockMode -> blockParse ckey
-    LineMode -> lineParse ckey
+    LineMode -> lineParse ckey vector
     DebugMode -> debugParse ckey
 
 blockParse :: [ParseClass] -> IO ()
@@ -34,10 +34,10 @@ blockParse !ckey = do
   let parser = A.parse (seekInObj' ckey)
   runParse parser C.stdinC
 
-lineParse :: [ParseClass] -> IO ()
-lineParse !ckey = do
+lineParse :: [ParseClass] -> Bool -> IO ()
+lineParse !ckey useVectors = do
   let parser = seekInObjZepto ckey
-  streamZepto parser
+  streamZepto parser useVectors
 
 debugParse :: [ParseClass] -> IO ()
 debugParse !ckey = do

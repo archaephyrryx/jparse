@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -35,6 +36,7 @@ import qualified Data.ByteString.Streaming.Char8 as BS8
 
 import Streaming
 import qualified Streaming.Prelude as S
+import Streaming.Internal (Stream(..))
 
 import JParse
 import Parse
@@ -47,8 +49,15 @@ import qualified Parse.Parser.Zepto as Z
 import qualified Parse.ReadStream as ZepS
 import qualified Parse.Parser.ZeptoStream as ZS
 
+import Final (toVector)
+
+
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+
 -- Concurrency mode
 import Control.Concurrent
+import Control.Concurrent.Async
 import Control.Concurrent.Chan
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TVar
@@ -75,22 +84,36 @@ uBound :: Int
 uBound = 1000
 {-# INLINE uBound #-}
 
-streamZepto :: Z.Parser (Maybe Builder) -> IO ()
+streamZepto :: Z.Parser (Maybe Builder) -> Bool -> IO ()
 streamZepto = zeptoMain
+
+data Bundle a where
+  ListOf   :: [a] -> Bundle a
+  VectorOf :: Vector a -> Bundle a
+  Empty    :: Bundle a
+
+foldrBundle :: (a -> b -> b) -> b -> Bundle a -> b
+foldrBundle f z (ListOf xs) = foldr f z xs
+foldrBundle f z (VectorOf v) = V.foldr f z v
+foldrBundle _ z _ = z
+{-# INLINE foldrBundle #-}
+
+nullBundle :: Bundle a -> Bool
+nullBundle (ListOf xs) = null xs
+nullBundle (VectorOf v) = V.null v
+nullBundle _ = True
+{-# INLINE nullBundle #-}
 
 -- | set of common synchronization values for concurrent linemode
 data ZEnv
    = ZEnv
      { nworkers :: Int -- ^ number of workers (runtime)
      , nw :: TVar Int -- ^ number of unterminated worker threads
-     , done :: MVar () -- ^ signal for end-of-processing
-     , input :: Chan [L.ByteString] -- ^ channel for unparsed input
+     , input :: Chan (Bundle L.ByteString) -- ^ channel for unparsed input
      , inCap :: TVar Int -- ^ counter for items in input channel
      , output :: Chan (Maybe ByteString) -- ^ channel for parsed output
      , outCap :: TVar Int -- ^ counter for items in output channel
      }
-
-
 
 newZEnv :: IO ZEnv
 newZEnv = do
@@ -98,20 +121,19 @@ newZEnv = do
   nw <- newTVarIO nworkers
   inCap <- newTVarIO 0
   outCap <- newTVarIO 0
-  done <- newEmptyMVar
   input <- newChan
   output <- newChan
   return ZEnv{..}
 
 
-zeptoMain :: Z.Parser (Maybe Builder) -> IO ()
-zeptoMain z = do
+zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> IO ()
+zeptoMain z vec = do
   ZEnv{..} <- newZEnv
-  forkIO $ distributor input inCap
-  mapM_ (\_ -> forkIO $ worker input output inCap outCap nw z) [1..nworkers]
-  forkIO $ collector output outCap done
+  async $ distributor input inCap vec
+  mapM_ (\_ -> async $ worker input output inCap outCap nw z) [1..nworkers]
+  done <- async $ collector output outCap -- done
   monitor output nw
-  readMVar done
+  wait done
 
 monitor :: Chan (Maybe a) -> TVar Int -> IO ()
 monitor output nw = do
@@ -120,19 +142,19 @@ monitor output nw = do
     unless (n == 0) retry
   writeChan output Nothing
 
-distributor :: Chan [L.ByteString] -> TVar Int -> IO ()
-distributor input inCap = do
-  S.mapM_ (doWrite input inCap) listStream
-  writeChan input []
+distributor :: Chan (Bundle L.ByteString) -> TVar Int -> Bool -> IO ()
+distributor input inCap vec = do
+  if vec
+     then S.mapM_ (doWrite input inCap) (S.map VectorOf vecStream)
+     else S.mapM_ (doWrite input inCap) (S.map ListOf listStream)
+  writeChan input Empty
 
-collector :: Chan (Maybe ByteString) -> TVar Int -> MVar () -> IO ()
-collector output outCap done = go
+collector :: Chan (Maybe ByteString) -> TVar Int -> IO ()
+collector output outCap = go
   where
-    go = do
-      doRead output outCap >>= \case
-        Just bs -> B.putStr bs >> go
-        Nothing -> putMVar done ()
-
+    go = doRead output outCap >>= \case
+           Just bs -> B.putStr bs >> go
+           Nothing -> return ()
 
 -- Roundabout BoundedChannel
 
@@ -149,7 +171,7 @@ doRead chan capt = do
   atomically $ modifyTVar capt pred
   readChan chan
 
-worker :: Chan [L.ByteString]
+worker :: Chan (Bundle L.ByteString)
        -> Chan (Maybe ByteString)
        -> TVar Int
        -> TVar Int
@@ -159,20 +181,20 @@ worker :: Chan [L.ByteString]
 worker input output inCap outCap nw z = go
   where
     go = do
-      bss <- doRead input inCap
-      if null bss
+      bnd <- doRead input inCap
+      if nullBundle bnd
          then do
            atomically $ modifyTVar nw pred
-           writeChan input []
-         else labor output outCap z bss >> go
+           writeChan input bnd
+         else labor output outCap z bnd >> go
 
 labor :: Chan (Maybe ByteString)
       -> TVar Int
       -> Z.Parser (Maybe Builder)
-      -> [L.ByteString]
+      -> Bundle L.ByteString
       -> IO ()
-labor output outCap z lbs = do
-  let bld = foldr (accZepto z) (mempty :: Builder) lbs
+labor output outCap z bnd = do
+  let bld = foldrBundle (accZepto z) (mempty :: Builder) bnd
       !bs = build bld
   doWrite output outCap (Just bs)
 
@@ -195,6 +217,27 @@ chunkStream = chunksOf nLines $ mapped BS.toLazy streamlines
 
 listStream :: Stream (Of [L.ByteString]) IO ()
 listStream = mapped S.toList chunkStream
+
+
+vecStream :: Stream (Of (Vector L.ByteString)) IO ()
+vecStream = mapped (toVector nLines) chunkStream
+{-
+vecStream = go $ mapped BS.toLazy streamlines
+  where
+    go :: Stream (Of L.ByteString) IO () -> Stream (Of (Vector L.ByteString)) IO ()
+    go (Return _) = pure ()
+    go str = do
+      let ht = S.splitAt nLines str
+      vec <- lift $ V.unfoldrNM nLines S.uncons ht
+      t <- lift $ S.effects ht
+      S.yield vec
+      go t
+-}
+
+toVector' :: Monad m
+          => Stream (Of a) m r
+          -> m (Of (Vector a) r)
+toVector' = S.mconcat . S.map V.singleton
 
 debugPrint :: MonadIO m
            => S.Stream (Of (Either String (Maybe Builder))) m r

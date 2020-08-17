@@ -19,14 +19,16 @@ import Data.Semigroup ((<>))
 type Qstring = ByteString
 
 data Options =
-  Options { query :: Qstring
-          , mode  :: Mode
+  Options { query  :: Qstring
+          , mode   :: Mode
+          , vector :: Bool
           }
 
 getOptions :: Parser Options
 getOptions = do
   query <- queryParse
   mode  <-  modeParse
+  vector <- vectorParse
   return Options{..}
 
 queryParse :: Parser Qstring
@@ -46,6 +48,9 @@ modeParse =
     <> value BlockMode
     <> metavar "MODE"
     )
+
+vectorParse :: Parser Bool
+vectorParse = switch (long "vector" <> short 'v' <> help "Whether to use vectors")
 
 -- * Command-line specification of input processing mode
 

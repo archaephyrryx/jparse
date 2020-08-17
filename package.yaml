@@ -49,8 +49,10 @@ executables:
     - -O2
     dependencies:
     - jparse
+    - async
     - optparse-applicative
     - stm
+    - vector
 
 tests:
   jparse-test:

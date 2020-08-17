@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternSynonyms #-}
-module Final (toVector) where
+module Final (toVector, toVectorIO) where
 
 import Data.Monoid (Monoid(..))
 import Data.Semigroup ((<>))
@@ -21,6 +21,7 @@ import Data.Functor ((<$>))
 import qualified Data.Vector as V
 
 import Control.Monad.Trans.State.Strict
+import Data.IORef
 
 unconsFinal :: Monad m => Stream (Of a) m r -> StateT r m (Maybe (a, Stream (Of a) m r))
 unconsFinal = loop
@@ -31,10 +32,16 @@ unconsFinal = loop
       Step (a :> rest) -> pure $ Just (a, rest)
 {-# INLINE unconsFinal #-}
 
-toVector :: Monad m
-         => Int
-         -> Stream (Of a) m r
-         -> m (Of (Vector a) r)
+unconsFinalIO :: MonadIO m => IORef r -> Stream (Of a) m r -> m (Maybe (a, Stream (Of a) m r))
+unconsFinalIO ret = loop
+  where
+    loop stream = case stream of
+      Return r -> liftIO (writeIORef ret r) >> pure Nothing
+      Effect m -> m >>= loop
+      Step (a :> rest) -> pure $ Just (a, rest)
+{-# INLINE unconsFinalIO #-}
+
+toVector :: Monad m => Int -> Stream (Of a) m r -> m (Of (Vector a) r)
 toVector size st = evalStateT go (error "toVector: no state to get")
   where
     go = do
@@ -42,3 +49,11 @@ toVector size st = evalStateT go (error "toVector: no state to get")
       ret <- get
       return (vec :> ret)
 {-# INLINE toVector #-}
+
+toVectorIO :: MonadIO m => Int -> Stream (Of a) m r -> m (Of (Vector a) r)
+toVectorIO size st = do
+  ref <- liftIO $ newIORef $ error "toVectorIO: return value never written"
+  vec <- V.unfoldrNM (size+1) (unconsFinalIO ref) st
+  ret <- liftIO $ readIORef ref
+  return (vec :> ret)
+{-# INLINE toVectorIO #-}

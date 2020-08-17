@@ -49,7 +49,7 @@ import qualified Parse.Parser.Zepto as Z
 import qualified Parse.ReadStream as ZepS
 import qualified Parse.Parser.ZeptoStream as ZS
 
-import Final (toVector)
+import Final (toVector, toVectorIO)
 
 
 import Data.Vector (Vector)

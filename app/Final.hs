@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE LambdaCase #-}
 module Final (toVector, toVectorIO, toVectorsIO) where
 
 import Data.Monoid (Monoid(..))
@@ -90,13 +90,12 @@ toVectors size st = evalStateT go (error "toVector: no state to get")
 -}
 
 toVectorsIO :: MonadIO m => Int -> Stream (Of a) m r -> Stream (Of (Vector a)) m r
-toVectorsIO size = go
+toVectorsIO size st = liftIO (newIORef st) >>= go
   where
-    go (Return r) = Return r
-    go stream = do
-      ref <- liftIO $ newIORef (pure undefined)
-      vec <- lift $ V.unfoldrNM size (unconsEveryIO ref) stream
-      rest <- liftIO $ readIORef ref
-      S.yield vec
-      go rest
+    go ref = liftIO (readIORef ref) >>= \case
+      (Return r) -> Return r
+      stream -> do
+        vec <- lift $ V.unfoldrNM size (unconsEveryIO ref) stream
+        S.yield vec
+        go ref
 {-# INLINE toVectorsIO #-}

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a60616e012edc6e55be5b678da24a356553f4d748677e3b5f5a4b70f3ee55b98
+-- hash: 75193260e755b5e76f5aa1c823deccaf83f20aace54db98fff8985d89ad8812b
 
 name:           jparse
 version:        0.1.0.0
@@ -84,6 +84,7 @@ executable jparse-exe
     , stm
     , streaming
     , streaming-bytestring
+    , streaming-utils
     , text
     , transformers
     , vector

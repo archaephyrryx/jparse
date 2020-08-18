@@ -36,6 +36,8 @@ packages:
 #
 extra-deps:
   - attoparsec-0.13.2.4
+  - streaming-utils-0.2.0.0
+  - json-stream-0.4.2.4
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #

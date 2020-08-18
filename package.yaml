@@ -52,6 +52,7 @@ executables:
     - async
     - optparse-applicative
     - stm
+    - streaming-utils
     - vector
 
 tests:

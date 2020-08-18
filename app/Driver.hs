@@ -38,6 +38,8 @@ import Streaming
 import qualified Streaming.Prelude as S
 import Streaming.Internal (Stream(..))
 
+import qualified Streaming.Zip as Zip
+
 import JParse
 import Parse
 
@@ -84,7 +86,7 @@ uBound :: Int
 uBound = 1000
 {-# INLINE uBound #-}
 
-streamZepto :: Z.Parser (Maybe Builder) -> Bool -> IO ()
+streamZepto :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
 streamZepto = zeptoMain
 
 data Bundle a where
@@ -126,10 +128,10 @@ newZEnv = do
   return ZEnv{..}
 
 
-zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> IO ()
-zeptoMain z vec = do
+zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
+zeptoMain z vec isZipped = do
   ZEnv{..} <- newZEnv
-  async $ distributor input inCap vec
+  async $ distributor input inCap vec isZipped
   mapM_ (\_ -> async $ worker input output inCap outCap nw z) [1..nworkers]
   done <- async $ collector output outCap -- done
   monitor output nw
@@ -142,11 +144,14 @@ monitor output nw = do
     unless (n == 0) retry
   writeChan output Nothing
 
-distributor :: Chan (Bundle L.ByteString) -> TVar Int -> Bool -> IO ()
-distributor input inCap vec = do
-  if vec
-     then S.mapM_ (doWrite input inCap) (S.map VectorOf vecStream)
-     else S.mapM_ (doWrite input inCap) (S.map ListOf listStream)
+distributor :: Chan (Bundle L.ByteString) -> TVar Int -> Bool -> Bool -> IO ()
+distributor input inCap vec isZipped = do
+  S.mapM_ (doWrite input inCap) $
+    if vec
+       then S.map VectorOf $
+         if isZipped then vecStreamGZ else vecStream
+       else S.map ListOf $
+         if isZipped then listStreamGZ else listStream
   writeChan input Empty
 
 collector :: Chan (Maybe ByteString) -> TVar Int -> IO ()
@@ -211,21 +216,29 @@ debugZepto :: MonadIO m => Z.Parser (Maybe Builder) -> m ()
 debugZepto z = S.mapM_ (liftIO . Prelude.putStrLn) $ debugPrint $ streamZ z streamlines
 -- debugZepto z = linestream $ streamlines
 
-
 chunkStream :: MonadIO m => Stream (Stream (Of L.ByteString) m) m ()
 chunkStream = chunksOf nLines $ mapped BS.toLazy streamlines
+{-# INLINE chunkStream #-}
+
+chunkStreamGZ :: MonadIO m => Stream (Stream (Of L.ByteString) m) m ()
+chunkStreamGZ = chunksOf nLines $ mapped BS.toLazy streamlinesGZ
+{-# INLINE chunkStreamGZ #-}
 
 listStream :: Stream (Of [L.ByteString]) IO ()
 listStream = mapped S.toList chunkStream
+{-# INLINE listStream #-}
+
+listStreamGZ ::  Stream (Of [L.ByteString]) IO ()
+listStreamGZ = mapped S.toList chunkStreamGZ
+{-# INLINE listStreamGZ #-}
 
 vecStream :: Stream (Of (Vector L.ByteString)) IO ()
---vecStream = mapped (toVectorIO nLines) chunkStream
 vecStream = toVectorsIO nLines $ mapped BS.toLazy streamlines
+{-# INLINE vecStream #-}
 
-toVector' :: Monad m
-          => Stream (Of a) m r
-          -> m (Of (Vector a) r)
-toVector' = S.mconcat . S.map V.singleton
+vecStreamGZ :: Stream (Of (Vector L.ByteString)) IO ()
+vecStreamGZ = toVectorsIO nLines $ mapped BS.toLazy streamlinesGZ
+{-# INLINE vecStreamGZ #-}
 
 debugPrint :: MonadIO m
            => S.Stream (Of (Either String (Maybe Builder))) m r
@@ -242,14 +255,21 @@ streamZ :: MonadIO m => Z.Parser (Maybe Builder)
         -> S.Stream (BS8.ByteString m) m r
         -> S.Stream (Of (Either String (Maybe Builder))) m r
 streamZ z = S.map (parseStream z) . mapped BS.toLazy
+{-# INLINE streamZ #-}
 
 parseStream :: Z.Parser (Maybe Builder)
             -> L.ByteString
             -> Either String (Maybe Builder)
 parseStream z = Z.parse z . L.toStrict
+{-# INLINE parseStream #-}
 
 streamlines :: MonadIO m => S.Stream (BS8.ByteString m) m ()
 streamlines = BS8.lines BS.stdin
+{-# INLINE streamlines #-}
+
+streamlinesGZ :: MonadIO m => S.Stream (BS8.ByteString m) m ()
+streamlinesGZ = BS8.lines $ Zip.gunzip BS.stdin
+{-# INLINE streamlinesGZ #-}
 
 build :: Builder -> ByteString
 build = L.toStrict . D.toLazyByteStringWith buildStrat L.empty

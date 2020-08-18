@@ -22,6 +22,7 @@ data Options =
   Options { query  :: Qstring
           , mode   :: Mode
           , vector :: Bool
+          , zipped :: Bool
           }
 
 getOptions :: Parser Options
@@ -29,6 +30,7 @@ getOptions = do
   query <- queryParse
   mode  <-  modeParse
   vector <- vectorParse
+  zipped <- zippedParse
   return Options{..}
 
 queryParse :: Parser Qstring
@@ -51,6 +53,9 @@ modeParse =
 
 vectorParse :: Parser Bool
 vectorParse = switch (long "vector" <> short 'v' <> help "Whether to use vectors")
+
+zippedParse :: Parser Bool
+zippedParse = switch (long "zipped" <> short 'z' <> help "Whether input is gzip-compressed")
 
 -- * Command-line specification of input processing mode
 

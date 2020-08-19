@@ -23,6 +23,7 @@ data Options =
           , mode   :: Mode
           , vector :: Bool
           , zipped :: Bool
+          , http   :: Maybe String
           }
 
 getOptions :: Parser Options
@@ -31,6 +32,7 @@ getOptions = do
   mode  <-  modeParse
   vector <- vectorParse
   zipped <- zippedParse
+  http <- httpParse
   return Options{..}
 
 queryParse :: Parser Qstring
@@ -56,6 +58,9 @@ vectorParse = switch (long "vector" <> short 'v' <> help "Whether to use vectors
 
 zippedParse :: Parser Bool
 zippedParse = switch (long "zipped" <> short 'z' <> help "Whether input is gzip-compressed")
+
+httpParse :: Parser (Maybe String)
+httpParse = option (Just <$> str) (long "http-url" <> short 'u' <> value Nothing <> metavar "URL" <> help "url from which input is read instead of stdin")
 
 -- * Command-line specification of input processing mode
 

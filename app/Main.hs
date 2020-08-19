@@ -9,7 +9,7 @@ import qualified Data.Attoparsec.ByteString as A (parse)
 
 import Parse (mapClass, ParseClass)
 import JParse (seekInObj', seekInObjZepto, runParse, putLnBuilderC)
-import Driver (streamZepto, debugZepto)
+import Driver (streamZepto, streamZeptoHttp, debugZepto)
 import Options (getOptions, Mode(..), Options(..))
 
 import Options.Applicative
@@ -26,7 +26,7 @@ main = do
   let ckey = mapClass $! query
   case mode of
     BlockMode -> blockParse ckey
-    LineMode -> lineParse ckey vector zipped
+    LineMode -> lineParse ckey http vector zipped
     DebugMode -> debugParse ckey
 
 blockParse :: [ParseClass] -> IO ()
@@ -34,8 +34,9 @@ blockParse !ckey = do
   let parser = A.parse (seekInObj' ckey)
   runParse parser C.stdinC
 
-lineParse :: [ParseClass] -> Bool -> Bool -> IO ()
-lineParse !ckey = streamZepto (seekInObjZepto ckey)
+lineParse :: [ParseClass] -> Maybe String -> Bool -> Bool-> IO ()
+lineParse !ckey Nothing = streamZepto (seekInObjZepto ckey)
+lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
 
 debugParse :: [ParseClass] -> IO ()
 debugParse !ckey = do

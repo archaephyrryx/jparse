@@ -51,7 +51,9 @@ import qualified Parse.Parser.Zepto as Z
 import qualified Parse.ReadStream as ZepS
 import qualified Parse.Parser.ZeptoStream as ZS
 
-import Final (toVector, toVectorIO, toVectorsIO)
+import Final
+import Streams
+import Global
 
 
 import Data.Vector (Vector)
@@ -71,11 +73,6 @@ import System.Environment
 
 -- * LineMode specialization
 
--- | number of lines per individual sub-stream in line-mode
-nLines :: Int
-nLines = 1024
-{-# INLINE nLines #-}
-
 -- | number of worker threads to run Zepto parsing in parallel
 nWorkers :: IO Int
 nWorkers = getNumCapabilities
@@ -88,6 +85,9 @@ uBound = 1000
 
 streamZepto :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
 streamZepto = zeptoMain
+
+streamZeptoHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
+streamZeptoHttp = zeptoMainHttp
 
 data Bundle a where
   ListOf   :: [a] -> Bundle a
@@ -137,6 +137,16 @@ zeptoMain z vec isZipped = do
   monitor output nw
   wait done
 
+zeptoMainHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
+zeptoMainHttp z url vec isZipped = do
+  ZEnv{..} <- newZEnv
+  async $ distributorHttp input inCap url vec isZipped
+  mapM_ (\_ -> async $ worker input output inCap outCap nw z) [1..nworkers]
+  done <- async $ collector output outCap -- done
+  monitor output nw
+  wait done
+
+
 monitor :: Chan (Maybe a) -> TVar Int -> IO ()
 monitor output nw = do
   atomically $ do
@@ -148,10 +158,16 @@ distributor :: Chan (Bundle L.ByteString) -> TVar Int -> Bool -> Bool -> IO ()
 distributor input inCap vec isZipped = do
   S.mapM_ (doWrite input inCap) $
     if vec
-       then S.map VectorOf $
-         if isZipped then vecStreamGZ else vecStream
-       else S.map ListOf $
-         if isZipped then listStreamGZ else listStream
+       then S.map VectorOf $ vecStreamOf  (InFormat isZipped)
+       else S.map ListOf   $ listStreamOf (InFormat isZipped)
+  writeChan input Empty
+
+distributorHttp :: Chan (Bundle L.ByteString) -> TVar Int -> String -> Bool -> Bool -> IO ()
+distributorHttp input inCap url vec isZipped = do
+  C.runResourceT $ S.mapM_ (liftIO . doWrite input inCap) $
+    if vec
+       then S.map VectorOf $ vecStreamOfHttp  url (InFormat isZipped)
+       else S.map ListOf   $ listStreamOfHttp url (InFormat isZipped)
   writeChan input Empty
 
 collector :: Chan (Maybe ByteString) -> TVar Int -> IO ()
@@ -216,30 +232,6 @@ debugZepto :: MonadIO m => Z.Parser (Maybe Builder) -> m ()
 debugZepto z = S.mapM_ (liftIO . Prelude.putStrLn) $ debugPrint $ streamZ z streamlines
 -- debugZepto z = linestream $ streamlines
 
-chunkStream :: MonadIO m => Stream (Stream (Of L.ByteString) m) m ()
-chunkStream = chunksOf nLines $ mapped BS.toLazy streamlines
-{-# INLINE chunkStream #-}
-
-chunkStreamGZ :: MonadIO m => Stream (Stream (Of L.ByteString) m) m ()
-chunkStreamGZ = chunksOf nLines $ mapped BS.toLazy streamlinesGZ
-{-# INLINE chunkStreamGZ #-}
-
-listStream :: Stream (Of [L.ByteString]) IO ()
-listStream = mapped S.toList chunkStream
-{-# INLINE listStream #-}
-
-listStreamGZ ::  Stream (Of [L.ByteString]) IO ()
-listStreamGZ = mapped S.toList chunkStreamGZ
-{-# INLINE listStreamGZ #-}
-
-vecStream :: Stream (Of (Vector L.ByteString)) IO ()
-vecStream = toVectorsIO nLines $ mapped BS.toLazy streamlines
-{-# INLINE vecStream #-}
-
-vecStreamGZ :: Stream (Of (Vector L.ByteString)) IO ()
-vecStreamGZ = toVectorsIO nLines $ mapped BS.toLazy streamlinesGZ
-{-# INLINE vecStreamGZ #-}
-
 debugPrint :: MonadIO m
            => S.Stream (Of (Either String (Maybe Builder))) m r
            -> S.Stream (Of String) m r
@@ -262,14 +254,6 @@ parseStream :: Z.Parser (Maybe Builder)
             -> Either String (Maybe Builder)
 parseStream z = Z.parse z . L.toStrict
 {-# INLINE parseStream #-}
-
-streamlines :: MonadIO m => S.Stream (BS8.ByteString m) m ()
-streamlines = BS8.lines BS.stdin
-{-# INLINE streamlines #-}
-
-streamlinesGZ :: MonadIO m => S.Stream (BS8.ByteString m) m ()
-streamlinesGZ = BS8.lines $ Zip.gunzip BS.stdin
-{-# INLINE streamlinesGZ #-}
 
 build :: Builder -> ByteString
 build = L.toStrict . D.toLazyByteStringWith buildStrat L.empty

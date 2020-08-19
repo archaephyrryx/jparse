@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 75193260e755b5e76f5aa1c823deccaf83f20aace54db98fff8985d89ad8812b
+-- hash: 44d86edae76cac4b365326840b71a660369fd992cc942b81b463deddc5a06eed
 
 name:           jparse
 version:        0.1.0.0
@@ -67,7 +67,9 @@ executable jparse-exe
   other-modules:
       Driver
       Final
+      Global
       Options
+      Streams
       Paths_jparse
   hs-source-dirs:
       app

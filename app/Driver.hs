@@ -132,16 +132,15 @@ zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
 zeptoMain z vec isZipped = do
   ZEnv{..} <- newZEnv
   async $ distributor input inCap vec isZipped
-  mapM_ (\_ -> async $ worker input output inCap outCap nw z) [1..nworkers]
-  done <- async $ collector output outCap -- done
-  monitor output nw
-  wait done
+  replicateM_ nworkers $ async $ worker input output inCap outCap nw z
+  async (collector output outCap) >>= \done -> monitor output nw >> wait done
 
 zeptoMainHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
 zeptoMainHttp z url vec isZipped = do
   ZEnv{..} <- newZEnv
-  async $ distributorHttp input inCap url vec isZipped
-  mapM_ (\_ -> async $ worker input output inCap outCap nw z) [1..nworkers]
+  dist <- async $ distributorHttp input inCap url vec isZipped
+  link dist
+  replicateM_ nworkers $ async $ worker input output inCap outCap nw z
   done <- async $ collector output outCap -- done
   monitor output nw
   wait done

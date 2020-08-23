@@ -32,8 +32,6 @@ import Global
 -- Newtypes for variants
 newtype SourceType = SourceType { isHttp :: Bool }
 newtype InFormat = InFormat { isZipped :: Bool }
-newtype Packaging = Packaging { isVector :: Bool }
-
 
 -- Patterns for variant types
 
@@ -52,15 +50,6 @@ pattern Zipped :: InFormat
 pattern Zipped = InFormat True
 
 {-# COMPLETE Raw, Zipped #-}
-
-pattern ToList :: Packaging
-pattern ToList = Packaging False
-
-pattern ToVector :: Packaging
-pattern ToVector = Packaging True
-
-{-# COMPLETE ToList, ToVector #-}
-
 
 -- helper functions
 
@@ -113,31 +102,6 @@ streamlines = stdinLines Raw
 streamlinesGZ :: MonadIO m => Stream (BS8.ByteString m) m ()
 streamlinesGZ = stdinLines Zipped
 {-# INLINE streamlinesGZ #-}
-
-chunkStream :: MonadIO m
-            => Stream (BS8.ByteString m) m ()
-            -> Stream (Stream (Of L.ByteString) m) m ()
-chunkStream = chunksOf nLines . mapped BS.toLazy
-{-# INLINE chunkStream #-}
-
-listStream :: Stream (Of [L.ByteString]) IO ()
-listStream = mapped S.toList $ chunkStream streamlines
-{-# INLINE listStream #-}
-
-listStreamGZ ::  Stream (Of [L.ByteString]) IO ()
-listStreamGZ = mapped S.toList $ chunkStream streamlinesGZ
-{-# INLINE listStreamGZ #-}
-
-listStreamOf :: InFormat -> Stream (Of [L.ByteString]) IO ()
-listStreamOf = mapped S.toList . chunkStream . stdinLines
-{-# INLINE listStreamOf #-}
-
-listStreamOfHttp :: (MonadResource m, MonadIO m)
-                 => String
-                 -> InFormat
-                 -> Stream (Of [L.ByteString]) m ()
-listStreamOfHttp url = mapped S.toList . chunkStream . httpLines url
-{-# INLINE listStreamOfHttp #-}
 
 vecStream :: Stream (Of (Vector L.ByteString)) IO ()
 vecStream = toVectorsIO nLines $ mapped BS.toLazy streamlines

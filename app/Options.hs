@@ -21,7 +21,6 @@ type Qstring = ByteString
 data Options =
   Options { query  :: Qstring
           , mode   :: Mode
-          , vector :: Bool
           , zipped :: Bool
           , http   :: Maybe String
           }
@@ -30,7 +29,6 @@ getOptions :: Parser Options
 getOptions = do
   query <- queryParse
   mode  <-  modeParse
-  vector <- vectorParse
   zipped <- zippedParse
   http <- httpParse
   return Options{..}
@@ -52,9 +50,6 @@ modeParse =
     <> value BlockMode
     <> metavar "MODE"
     )
-
-vectorParse :: Parser Bool
-vectorParse = switch (long "vector" <> short 'v' <> help "Whether to use vectors")
 
 zippedParse :: Parser Bool
 zippedParse = switch (long "zipped" <> short 'z' <> help "Whether input is gzip-compressed")

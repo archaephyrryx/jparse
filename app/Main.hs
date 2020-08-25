@@ -26,7 +26,7 @@ main = do
   let ckey = mapClass $! query
   case mode of
     BlockMode -> blockParse ckey
-    LineMode -> lineParse ckey http vector zipped
+    LineMode -> lineParse ckey http zipped
     DebugMode -> debugParse ckey
 
 blockParse :: [ParseClass] -> IO ()
@@ -34,7 +34,7 @@ blockParse !ckey = do
   let parser = A.parse (seekInObj' ckey)
   runParse parser C.stdinC
 
-lineParse :: [ParseClass] -> Maybe String -> Bool -> Bool-> IO ()
+lineParse :: [ParseClass] -> Maybe String -> Bool -> IO ()
 lineParse !ckey Nothing = streamZepto (seekInObjZepto ckey)
 lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
 

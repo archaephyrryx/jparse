@@ -56,6 +56,7 @@ import Streams
 import Global
 
 import Driver.Internal
+import Driver.Distributor
 
 
 import Data.Vector (Vector)
@@ -85,7 +86,7 @@ streamZeptoHttp = zeptoMainHttp
 zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> IO ()
 zeptoMain z isZipped = do
   ZEnv{..} <- newZEnv
-  async $ distributor input isZipped
+  distributor input isZipped
   replicateM_ nworkers $ async $ worker input output nw z
   done <- async $ collector output
   monitor output nw
@@ -94,7 +95,7 @@ zeptoMain z isZipped = do
 zeptoMainHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> IO ()
 zeptoMainHttp z url isZipped = do
   ZEnv{..} <- newZEnv
-  link =<< async (distributorHttp input url isZipped)
+  distributorHttp input url isZipped
   replicateM_ nworkers $ async $ worker input output nw z
   done <- async $ collector output
   monitor output nw
@@ -105,17 +106,7 @@ monitor output nw = do
   atomically $ do
     n <- readTVar nw
     unless (n == 0) retry
-  writeChan (chan output) Nothing
-
-distributor :: ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
-distributor input isZipped = do
-  S.mapM_ (writeChanBounded input) $ vecStreamOf  (InFormat isZipped)
-  writeChan (chan input) mempty
-
-distributorHttp :: ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
-distributorHttp input url isZipped = do
-  C.runResourceT $ S.mapM_ (liftIO . writeChanBounded input) $ vecStreamOfHttp  url (InFormat isZipped)
-  writeChan (chan input) mempty
+  writeChanBounded output Nothing
 
 collector :: ChanBounded (Maybe ByteString) -> IO ()
 collector output = go
@@ -136,7 +127,7 @@ worker input output nw z = go
       if nullBundle bnd
          then do
            atomically $ modifyTVar nw pred
-           writeChan (chan input) bnd
+           writeChanBounded input bnd
          else labor output z bnd >> go
 
 labor :: ChanBounded (Maybe ByteString)

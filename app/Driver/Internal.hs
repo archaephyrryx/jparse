@@ -65,32 +65,47 @@ import Control.Monad (replicateM_, unless, when)
 import System.IO (stdout)
 import System.Environment
 
+import qualified Control.Concurrent.BoundedChan as BC
+import Control.Concurrent.BoundedChan (BoundedChan, newBoundedChan)
+
+{-
 data ChanBounded a =
      ChanBounded { chan :: Chan a
                  , tlim :: TVar Int
                  , nlim :: !Int
                  }
+-}
+type ChanBounded a = BoundedChan a
 
 newChanBounded :: Int -> IO (ChanBounded a)
+newChanBounded = newBoundedChan
+{-
 newChanBounded nlim = do
     chan <- newChan
     tlim <- newTVarIO 0
     return ChanBounded{..}
+-}
 {-# INLINE newChanBounded #-}
 
 writeChanBounded :: ChanBounded a -> a -> IO ()
+writeChanBounded = BC.writeChan
+{-
 writeChanBounded ChanBounded{..} val = do
   atomically $ do
     level <- readTVar tlim
     when (level >= nlim) retry
   atomically $ modifyTVar tlim succ
   writeChan chan val
+-}
 {-# INLINE writeChanBounded #-}
 
 readChanBounded :: ChanBounded a -> IO a
+readChanBounded = BC.readChan
+{-
 readChanBounded ChanBounded{..} = do
   atomically $ modifyTVar tlim pred
   readChan chan
+-}
 {-# INLINE readChanBounded #-}
 
 
@@ -133,7 +148,7 @@ feedChanBounded cb = go
     go stream =
       S.uncons stream >>= \case
         Just (x, rest) -> liftIO (writeChanBounded cb x) >> go rest
-        Nothing -> liftIO (writeChan (chan cb) mempty)
+        Nothing -> liftIO $ BC.writeChan cb mempty
 {-# INLINE feedChanBounded #-}
 
 drainChanBounded :: (MonadIO m, Monoid a, Eq a) => ChanBounded a -> Stream (Of a) m ()

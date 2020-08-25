@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b404e7b48dd6875d07469ffa2ba0709097a4341bd6ff7d15f63c5258251ace69
+-- hash: e0696bea653479af024964e6374ff73350dbc5f289f13dcae0adfd6f0d5f7300
 
 name:           jparse
 version:        0.1.0.0
@@ -66,6 +66,7 @@ executable jparse-exe
   main-is: Main.hs
   other-modules:
       Driver
+      Driver.Distributor
       Driver.Internal
       Final
       Global
@@ -76,7 +77,8 @@ executable jparse-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
-      async
+      BoundedChan
+    , async
     , attoparsec
     , base >=4.7 && <5
     , base16-bytestring
@@ -84,6 +86,7 @@ executable jparse-exe
     , conduit
     , jparse
     , optparse-applicative
+    , resourcet
     , stm
     , streaming
     , streaming-bytestring

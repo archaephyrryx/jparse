@@ -50,7 +50,9 @@ executables:
     dependencies:
     - jparse
     - async
+    - BoundedChan
     - optparse-applicative
+    - resourcet
     - stm
     - streaming-utils
     - vector

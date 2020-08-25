@@ -56,6 +56,7 @@ import Streams
 import Global
 
 import Driver.Internal
+import Driver.Distributor
 
 
 import Data.Vector (Vector)
@@ -100,66 +101,12 @@ zeptoMainHttp z url isZipped = do
   monitor output nw
   wait done
 
-distributorHttp :: ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
-distributorHttp input url True = do
-  hzGate <- newChanBounded uBound_gate
-  zvGate <- newChanBounded uBound_gate
-  link =<< async (httpSource hzGate url)
-  async $ gatedGZ hzGate zvGate
-  async $ gatedVect zvGate input
-  return ()
-distributorHttp input url False = do
-  hvGate <- newChanBounded uBound_gate
-  httpThread <- async $ httpSource hvGate url
-  link httpThread
-  async $ shortedVect hvGate input
-  return ()
-
-distributor :: ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
-distributor input True = do
-  zvGate <- newChanBounded uBound_gate
-  async $ stdinGZSource zvGate
-  async $ gatedVect zvGate input
-  return ()
-distributor input False = do
-  async $ stdinRawSource input
-  return ()
-
-httpSource :: ChanBounded B.ByteString -> String -> IO ()
-httpSource hzGate url = C.runResourceT $ feedChanBounded hzGate $ BS.toChunks (getHttp url)
-
-stdinGZSource :: ChanBounded B.ByteString -> IO ()
-stdinGZSource zvGate = feedChanBounded zvGate $ S.map L.toStrict $ mapped BS.toLazy $ streamlinesGZ
-
-stdinRawSource :: ChanBounded (Vector L.ByteString) -> IO ()
-stdinRawSource input = feedChanBounded input vecStream
-
-gatedGZ :: ChanBounded B.ByteString -> ChanBounded B.ByteString -> IO ()
-gatedGZ hzGate zvGate =
-  feedChanBounded zvGate $
-  S.map L.toStrict $
-  mapped BS.toLazy $
-  (`convertLines`Zipped) $
-  BS.fromChunks $
-  drainChanBounded hzGate
-
-shortedVect :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
-shortedVect zvGate input = do
-  let stream = drainChanBounded zvGate
-  feedChanBounded input $ toVectorsIO nLines $ mapped BS.toLazy $ BS8.lines $ BS.fromChunks $ stream
-
-
-gatedVect :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
-gatedVect zvGate input = do
-  let stream = drainChanBounded zvGate
-  feedChanBounded input $ toVectorsIO nLines $ S.map L.fromStrict $ stream
-
 monitor :: ChanBounded (Maybe a) -> TVar Int -> IO ()
 monitor output nw = do
   atomically $ do
     n <- readTVar nw
     unless (n == 0) retry
-  writeChan (chan output) Nothing
+  writeChanBounded output Nothing
 
 collector :: ChanBounded (Maybe ByteString) -> IO ()
 collector output = go
@@ -180,7 +127,7 @@ worker input output nw z = go
       if nullBundle bnd
          then do
            atomically $ modifyTVar nw pred
-           writeChan (chan input) bnd
+           writeChanBounded input bnd
          else labor output z bnd >> go
 
 labor :: ChanBounded (Maybe ByteString)

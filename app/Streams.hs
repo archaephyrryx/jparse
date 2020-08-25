@@ -61,6 +61,14 @@ fi :: a -> a -> Bool -> a
 fi x y p = if_ p x y
 {-# INLINE fi #-}
 
+lazyLines :: MonadIO m => BS.ByteString m () -> Stream (Of L.ByteString) m ()
+lazyLines = mapped BS.toLazy . BS8.lines
+{-# INLINE lazyLines #-}
+
+gunzipLines :: MonadIO m => BS.ByteString m () -> Stream (BS.ByteString m) m ()
+gunzipLines = BS8.lines . Zip.gunzip
+{-# INLINE gunzipLines #-}
+
 -- | Generic function for producing a line-split input stream from a monadic bytestring produced
 --   via a specified transformation of a seed value
 linesOf :: MonadIO m => (a -> BS.ByteString m ()) -> (a -> Stream (BS.ByteString m) m ())

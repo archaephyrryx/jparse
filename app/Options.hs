@@ -22,6 +22,7 @@ data Options =
   Options { query  :: Qstring
           , mode   :: Mode
           , zipped :: Bool
+          , gated  :: Bool
           , http   :: Maybe String
           }
 
@@ -30,6 +31,7 @@ getOptions = do
   query <- queryParse
   mode  <-  modeParse
   zipped <- zippedParse
+  gated <- gatedParse
   http <- httpParse
   return Options{..}
 
@@ -53,6 +55,9 @@ modeParse =
 
 zippedParse :: Parser Bool
 zippedParse = switch (long "zipped" <> short 'z' <> help "Whether input is gzip-compressed")
+
+gatedParse :: Parser Bool
+gatedParse = switch (long "gated" <> short 'g' <> help "Whether to 'gate' input pre-processing (for http and/or gzip)")
 
 httpParse :: Parser (Maybe String)
 httpParse = option (Just <$> str) (long "http-url" <> short 'u' <> value Nothing <> metavar "URL" <> help "url from which input is read instead of stdin")

@@ -13,8 +13,6 @@ import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Char8 as S8
-import Data.ByteString (ByteString)
 
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
@@ -27,6 +25,7 @@ import qualified Data.Conduit as C
 import qualified Data.Conduit.Combinators as C
 import Data.Conduit ((.|))
 
+import Data.ByteString.Streaming.Internal (ByteString(..))
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
 
@@ -176,7 +175,7 @@ data ZEnv
      { nworkers :: Int -- ^ number of workers (runtime)
      , nw :: TVar Int -- ^ number of unterminated worker threads
      , input :: ChanBounded (Bundle L.ByteString) -- ^ channel for unparsed input
-     , output :: ChanBounded (Maybe ByteString) -- ^ channel for parsed output
+     , output :: ChanBounded (Maybe B.ByteString) -- ^ channel for parsed output
      }
 
 newZEnv :: IO ZEnv
@@ -188,9 +187,19 @@ newZEnv = do
   return ZEnv{..}
 
 -- Builder->Strict ByteString conversion
-build :: Builder -> ByteString
+build :: Builder -> B.ByteString
 build = L.toStrict . D.toLazyByteStringWith buildStrat L.empty
   where
     buildStrat = D.untrimmedStrategy 2048 4096
     {-# INLINE buildStrat #-}
 {-# INLINE build #-}
+
+toStricts :: Monad m => Stream (BS.ByteString m) m r -> Stream (Of B.ByteString) m r
+toStricts = S.mapped _toStrict
+  where
+    _toStrict :: Monad m => BS.ByteString m r -> m (Of B.ByteString r)
+    _toStrict mbs = do
+      (lbs :> ret) <- BS.toLazy mbs
+      return (L.toStrict lbs :> ret)
+    {-# INLINE _toStrict #-}
+{-# INLINE toStricts #-}

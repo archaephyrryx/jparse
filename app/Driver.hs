@@ -77,25 +77,33 @@ import System.Environment
 -- * LineMode specialization
 
 
-streamZepto :: Z.Parser (Maybe Builder) -> Bool -> IO ()
+streamZepto :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
 streamZepto = zeptoMain
 
-streamZeptoHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> IO ()
+streamZeptoHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
 streamZeptoHttp = zeptoMainHttp
 
-zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> IO ()
-zeptoMain z isZipped = do
+dist :: Bool -> ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
+dist True = distributorGated
+dist False = distributor
+
+distHttp :: Bool -> ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
+distHttp True = distributorHttpGated
+distHttp False = distributorHttp
+
+zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
+zeptoMain z isZipped isGated = do
   ZEnv{..} <- newZEnv
-  distributor input isZipped
+  dist isGated input isZipped
   replicateM_ nworkers $ async $ worker input output nw z
   done <- async $ collector output
   monitor output nw
   wait done
 
-zeptoMainHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> IO ()
-zeptoMainHttp z url isZipped = do
+zeptoMainHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
+zeptoMainHttp z url isZipped isGated = do
   ZEnv{..} <- newZEnv
-  distributorHttp input url isZipped
+  distHttp isGated input url isZipped
   replicateM_ nworkers $ async $ worker input output nw z
   done <- async $ collector output
   monitor output nw

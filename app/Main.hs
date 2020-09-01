@@ -27,7 +27,6 @@ main = do
   case mode of
     BlockMode -> blockParse ckey
     LineMode -> lineParse ckey http zipped gated
-    DebugMode -> debugParse ckey
 
 blockParse :: [ParseClass] -> IO ()
 blockParse !ckey = do
@@ -37,8 +36,3 @@ blockParse !ckey = do
 lineParse :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
 lineParse !ckey Nothing = streamZepto (seekInObjZepto ckey)
 lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
-
-debugParse :: [ParseClass] -> IO ()
-debugParse !ckey = do
-  let parser = seekInObjZepto ckey
-  debugZepto parser

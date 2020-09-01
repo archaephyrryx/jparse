@@ -155,30 +155,3 @@ accZepto z bs bld =
   case Z.parse z (L.toStrict bs) of
     Right (Just x) -> x <> D.word8 0x0a <> bld
     _ -> bld
-
-debugZepto :: MonadIO m => Z.Parser (Maybe Builder) -> m ()
-debugZepto z = S.mapM_ (liftIO . Prelude.putStrLn) $ debugPrint $ streamZ z streamlines
--- debugZepto z = linestream $ streamlines
-
-debugPrint :: MonadIO m
-           => S.Stream (Of (Either String (Maybe Builder))) m r
-           -> S.Stream (Of String) m r
-debugPrint = S.map (either ("Left>"++) buildString)
-
-buildString Nothing = "Right>Nothing"
-buildString (Just d) = "Right>Just>" ++ S8.unpack (build d)
-
-purgeZepto :: MonadIO m => S.Stream (Of (Either String (Maybe Builder))) m r -> S.Stream (Of String) m r
-purgeZepto = S.map (fromLeft "weird...") . S.filter isLeft
-
-streamZ :: MonadIO m => Z.Parser (Maybe Builder)
-        -> S.Stream (BS8.ByteString m) m r
-        -> S.Stream (Of (Either String (Maybe Builder))) m r
-streamZ z = S.map (parseStream z) . mapped BS.toLazy
-{-# INLINE streamZ #-}
-
-parseStream :: Z.Parser (Maybe Builder)
-            -> L.ByteString
-            -> Either String (Maybe Builder)
-parseStream z = Z.parse z . L.toStrict
-{-# INLINE parseStream #-}

@@ -38,6 +38,8 @@ extra-deps:
   - attoparsec-0.13.2.4
   - streaming-utils-0.2.0.0
   - json-stream-0.4.2.4
+  - git: https://github.com/haskell-streaming/streaming-bytestring.git
+    commit: b99c042dd0dc62b6ba71bd6e3c5783fd2f3875a4
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #

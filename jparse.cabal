@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e0696bea653479af024964e6374ff73350dbc5f289f13dcae0adfd6f0d5f7300
+-- hash: 4ebaf53aa2a8636e8aca709dbfc5a1baca9f03222491cd3a449a692be635564e
 
 name:           jparse
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Data.ByteString.Seek
       JParse
       Parse
       Parse.Match
@@ -49,7 +50,9 @@ library
       Paths_jparse
   hs-source-dirs:
       src
-  ghc-options: -O2 -fprof-auto -fprof-cafs
+  ghc-options: -O2
+  include-dirs:
+      cbits
   build-depends:
       attoparsec
     , base >=4.7 && <5
@@ -70,6 +73,7 @@ executable jparse-exe
       Driver.Internal
       Final
       Global
+      Helper
       Options
       Streams
       Paths_jparse
@@ -111,7 +115,7 @@ test-suite jparse-test
     , base16-bytestring
     , bytestring
     , conduit
-    , criterion
+    , gauge
     , jparse
     , streaming
     , streaming-bytestring

@@ -67,4 +67,4 @@ tests:
     - -O2
     dependencies:
     - jparse
-    - criterion
+    - gauge

@@ -1,9 +1,11 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Benchmark where
 
-import Criterion.Main
+import Gauge.Main
 
 import qualified Data.Attoparsec.ByteString as A
 
@@ -13,6 +15,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Unsafe as B
 import qualified Data.ByteString.Lazy as L
 import Data.ByteString (ByteString)
 
@@ -66,24 +69,25 @@ main = do
       , bench "last"    $ nfIO $ countZepto "foo" "lasts.txt"
       , bench "middle"  $ nfIO $ countZepto "foo" "mids.txt"
       ]
-    ,-} bgroup "skipToEndQ escapes" $
+    , -} bgroup "skipToEndQ escapes" $
         [ bench "Base"    $ whnf (run skipToEndQ id) bstring
         , bench "Alt" $ whnf (run Alt.skipToEndQ id) bstring
+        , bench "OldZepto" $ whnf (run' Zep.old_skipToEndQ id) bstring
         , bench "Zepto" $ whnf (run' Zep.skipToEndQ id) bstring
-        , bench "ZeptoS" $ whnf (runZ ZepS.skipToEndQ id) bstring
         ]
-    , bgroup "parseToEndQ escapes" $
+    {- , bgroup "parseToEndQ escapes" $
         [ bench "Base"    $ whnf (run parseToEndQ build)     bstring
         , bench "Alt" $ whnf (run Alt.parseToEndQ build) bstring
         , bench "Zepto" $ whnf (run' Zep.parseToEndQ build) bstring
         , bench "ZeptoS" $ whnf (runZ ZepS.parseToEndQ build) bstring
-        ]
+        ] -}
     , bgroup "skipToEndQ simple" $
         [ bench "Base"    $ whnf (run skipToEndQ id) bstring'
         , bench "Alt" $ whnf (run Alt.skipToEndQ id) bstring'
+        , bench "OldZepto" $ whnf (run' Zep.old_skipToEndQ id) bstring'
         , bench "Zepto" $ whnf (run' Zep.skipToEndQ id) bstring'
-        , bench "ZeptoS" $ whnf (runZ ZepS.skipToEndQ id) bstring
         ]
+      {-
     , bgroup "parseToEndQ simple" $
         [ bench "Base"    $ whnf (run parseToEndQ build)     bstring'
         , bench "Alt" $ whnf (run Alt.parseToEndQ build) bstring'
@@ -96,7 +100,6 @@ main = do
         , bench "Zepto" $ whnf (run' (keyToZepto "foo") $ build.fromJust) fooson
         , bench "ZeptoS" $ whnf (runZ (keyToStream "foo") $ build.fromJust) fooson
         ]
-    {-
       bgroup "Zepto Parse Lines" $
         [ bench "Zepto Conduit" $ nfIO (conduitAct "foo")
         , bench "Zepto Streaming" $ nfIO (streamActZ "foo")
@@ -153,7 +156,10 @@ streamlines = BS8.lines . BS.readFile
 -}
 
 run :: A.Parser a -> (a -> b) -> ByteString -> b
-run p f b = (\(A.Done _ x) -> f x) $ A.parse p b
+run p f b = complete f $ A.parse p b
+  where
+    complete f (A.Done _ x) = f x
+    complete f (A.Partial c) = complete f (c mempty)
 
 run' :: Z.Parser a -> (a -> b) -> ByteString -> b
 run' p f b = (\(Right x) -> f x) $ Z.parse p b
@@ -162,10 +168,10 @@ runZ :: ZS.Parser a -> (a -> b) -> ByteString -> b
 runZ p f b = (\(Right x) -> f x) $ ZS.parse p b
 
 bstring :: ByteString
-bstring = "\"this is an exceptionally long string with escapes such as \\b, \\t, \\\\, and even \\u2f3F-like quads\""
+bstring = "this is an exceptionally long string with escapes such as \\b, \\t, \\\\, and even \\u2f3F-like quads\"   "
 
 bstring' :: ByteString
-bstring' = "\"this is an exceptionally long string with a single quad and no other escapes. the quad is \\u2f3f and everything else is just plain text. really nothing too interesting.\""
+bstring' = "this is an exceptionally long string with a single quad and no other escapes. the quad is \\u2f3f and everything else is just plain text. really nothing too interesting.\"   "
 
 fooson :: ByteString
 fooson = "{ \"ignore\" : -123 , \"everything\":null, \"until\":[\"you\",\"see\"] , \"the\":{ \"key\":\"foo\" }, \"foo\":\"<- here it is!\" }"

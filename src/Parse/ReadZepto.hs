@@ -51,7 +51,11 @@ parseToEndQ = parseQBuilder <* Z.skipSpace
 --
 --   does not check for EOF or invalid backslash escapes
 skipToEndQ :: Z.Parser ()
-skipToEndQ = skipQUnit >> Z.skipSpace
+skipToEndQ = Z.skipEndQuote >> Z.skipSpace
+{-# INLINE skipToEndQ #-}
+
+old_skipToEndQ :: Z.Parser ()
+old_skipToEndQ = skipQUnit >> Z.skipSpace
   where
     skipQUnit :: Z.Parser ()
     skipQUnit = go
@@ -62,7 +66,7 @@ skipToEndQ = skipQUnit >> Z.skipSpace
             Quote  -> pure ()
             _      -> Z.pop >> go
     {-# INLINE skipQUnit #-}
-{-# INLINE skipToEndQ #-}
+{-# INLINE old_skipToEndQ #-}
 
 -- | basic parser that interprets escaped characters (except backslash)
 parseEscaped :: Z.Parser Builder

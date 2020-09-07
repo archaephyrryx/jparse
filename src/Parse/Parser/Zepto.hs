@@ -23,6 +23,7 @@ module Parse.Parser.Zepto
   , skip
   , takeWhile
   , skipWhile
+  , skipEndQuote
   , peek
   , pop
   ) where
@@ -32,6 +33,7 @@ import Control.Monad (MonadPlus(..), ap)
 import qualified Control.Monad.Fail as Fail
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.ByteString (ByteString)
+import Data.ByteString.Seek (skipString)
 import Data.Functor.Identity (Identity(runIdentity))
 import Data.Monoid as Mon (Monoid(..))
 import Data.Semigroup (Semigroup(..))
@@ -217,6 +219,14 @@ lowEq b1 b2 = B.map toLower b1 == B.map toLower b2
     toLower w | w >= 65 && w <= 90 = w + 32
               | otherwise          = w
 {-# INLINE lowEq #-}
+
+skipEndQuote :: Parser ()
+skipEndQuote = do
+  i <- gets input
+  case skipString i of
+    Nothing -> fail "skipEndQuote"
+    Just !s -> put $ S s
+{-# INLINE skipEndQuote #-}
 
 -- | Indicate whether the end of the input has been reached.
 atEnd :: Parser Bool

@@ -52,7 +52,6 @@ import qualified Parse.ReadStream as ZepS
 import qualified Parse.Parser.ZeptoStream as ZS
 
 import Final
-import Streams
 import Global
 
 import Driver.Internal

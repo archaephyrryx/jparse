@@ -7,8 +7,6 @@
 
 module Driver.Internal where
 
-import Data.Semigroup ((<>))
-
 import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString as B
@@ -18,38 +16,14 @@ import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
 import qualified Data.ByteString.Builder.Extra as D
 
-import Data.Either (isLeft, fromLeft)
-
-import qualified Conduit as C
-import qualified Data.Conduit as C
-import qualified Data.Conduit.Combinators as C
-import Data.Conduit ((.|))
-
 import Data.ByteString.Streaming.Internal (ByteString(..))
 import qualified Data.ByteString.Streaming as BS
-import qualified Data.ByteString.Streaming.Char8 as BS8
 
 import Streaming
 import qualified Streaming.Prelude as S
 import Streaming.Internal (Stream(..))
 
-import qualified Streaming.Zip as Zip
-
-import JParse
-import Parse
-
-import qualified Parse.ReadAlt as Alt
-
-import qualified Parse.ReadZepto as Zep
-import qualified Parse.Parser.Zepto as Z
-
-import qualified Parse.ReadStream as ZepS
-import qualified Parse.Parser.ZeptoStream as ZS
-
-import Final
-import Streams
 import Global
-
 
 import Data.Vector (Vector)
 import qualified Data.Vector as V
@@ -60,9 +34,6 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TVar
-import Control.Monad (replicateM_, unless, when)
-import System.IO (stdout)
-import System.Environment
 
 import qualified Control.Concurrent.BoundedChan as BC
 import Control.Concurrent.BoundedChan (BoundedChan, newBoundedChan)

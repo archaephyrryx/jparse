@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
-module Final (toVector, toVectorIO, toVectorsIO) where
+{-# LANGUAGE BangPatterns #-}
+module Final (toVector, toVectorIO, toVectorsIO, toVectorsLBS) where
 
 import Data.Monoid (Monoid(..))
 import Data.Semigroup ((<>))
@@ -9,6 +10,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as S8
+import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.ByteString (ByteString)
 
 import Data.Either (isLeft, fromLeft)
@@ -99,3 +101,22 @@ toVectorsIO size st = liftIO (newIORef st) >>= go
         S.yield vec
         go ref
 {-# INLINE toVectorsIO #-}
+
+-- XXX: figure out which version of vectorLines is better (both seem to have similar performance)
+toVectorsLBS :: MonadIO m => Int -> Stream (Of L.ByteString) m r -> Stream (Of (Vector L.ByteString)) m r
+toVectorsLBS size = S.map vectorLines
+  where
+    vectorLines :: L.ByteString -> Vector L.ByteString
+    vectorLines lb = V.fromListN size $ L8.lines lb
+
+    vectorLines' :: L.ByteString -> Vector L.ByteString
+    vectorLines' lb = V.unfoldrN size getLine lb
+      where
+        getLine lb | L.null lb = Nothing
+                   | otherwise = case L.elemIndex 0xa lb of
+                      Nothing  -> Just (lb, L.empty)
+                      Just !ix -> Just (L.take ix lb, L.drop (ix+1) lb)
+        {-# INLINE getLine #-}
+    {-# INLINE vectorLines #-}
+    {-# INLINE vectorLines' #-}
+{-# INLINE toVectorsLBS #-}

@@ -129,6 +129,25 @@ drainChanBounded cb = go
       if x == mempty then Return () else Step (x :> go)
 {-# INLINE drainChanBounded #-}
 
+writeBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteString m r -> m ()
+writeBS cb = go
+  where
+    go = \case
+      Empty _ -> liftIO $ writeChanBounded cb B.empty
+      Chunk b mb -> (liftIO $ writeChanBounded cb b) >> go mb
+      Go m -> m >>= go
+{-# INLINE writeBS #-}
+
+readBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteString m ()
+readBS cb = go
+  where
+    go = Go $ do
+      b <- liftIO $ readChanBounded cb
+      if B.null b
+        then return (Empty ())
+        else return $ Chunk b go
+{-# INLINE readBS #-}
+
 -- | Abstraction around list or vector of elements
 type Bundle a = Vector a
 

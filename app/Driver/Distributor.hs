@@ -22,27 +22,39 @@ import qualified Streaming.Zip as Zip
 import Driver.Internal
 import Final
 import Global
-import Streams
 
+import qualified Streams as Refactor
+
+import Helper
 
 -- * Ungated version
 
 distributor :: ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
 distributor input isZipped = async go >> pure ()
   where
-    go = do
-      S.mapM_ (writeChanBounded input) $ vecStreamOf  (InFormat isZipped)
-      writeChanBounded input mempty
-    {-# INLINE go #-}
+    src = Refactor.vecStreamSplitOf isZipped
+    {-# INLINE src #-}
+
+    go = S.mapM_ (writeChanBounded input) src >> writeChanBounded input mempty
+    {-# INLINE go  #-}
+
+    go' = feedChanBounded input $ src
+    {-# INLINE go' #-}
 {-# INLINE distributor #-}
 
 distributorHttp :: ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
 distributorHttp input url isZipped = async go >>= link
   where
+    src = Refactor.vecStreamSplitOfHttp url isZipped
+    {-# INLINE src #-}
+
     go = do
-      runResourceT $ S.mapM_ (liftIO . writeChanBounded input) $ vecStreamOfHttp  url (InFormat isZipped)
+      runResourceT $ S.mapM_ (liftIO . writeChanBounded input) src
       writeChanBounded input mempty
-    {-# INLINE go #-}
+    {-# INLINE go  #-}
+
+    go' = runResourceT $ feedChanBounded input src
+    {-# INLINE go' #-}
 {-# INLINE distributorHttp #-}
 
 -- * Gated Version
@@ -69,31 +81,32 @@ distributorHttpGated input url False = do
   hvGate <- newChanBounded uBound_gate
   httpThread <- async $ httpSource hvGate url
   link httpThread
-  async $ shortedVect hvGate input
+  async $ gatedVect hvGate input
   return ()
 
 httpSource :: ChanBounded B.ByteString -> String -> IO ()
-httpSource hzGate url = runResourceT $ feedChanBounded hzGate $ BS.toChunks (getHttp url)
+httpSource hzGate url = runResourceT $ writeBS hzGate $ Refactor.getHttp url
 
 stdinGZSource :: ChanBounded B.ByteString -> IO ()
-stdinGZSource zvGate = feedChanBounded zvGate $ toStricts streamlinesGZ
+stdinGZSource zvGate = writeBS zvGate $ Zip.gunzip BS.stdin
 
 stdinRawSource :: ChanBounded (Vector L.ByteString) -> IO ()
-stdinRawSource input = feedChanBounded input vecStream
+stdinRawSource input = feedChanBounded input Refactor.vecStream
+
+stdinRawSourceSplit :: ChanBounded (Vector L.ByteString) -> IO ()
+stdinRawSourceSplit input = feedChanBounded input Refactor.vecStreamSplit
 
 gatedGZ :: ChanBounded B.ByteString -> ChanBounded B.ByteString -> IO ()
 gatedGZ hzGate zvGate = do
-  let stream = drainChanBounded hzGate
-  feedChanBounded zvGate $ toStricts $ gunzipLines $ BS.fromChunks stream
-
-shortedVect :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
-shortedVect zvGate input = do
-  let stream = drainChanBounded zvGate
-  feedChanBounded input $ toVectorsIO nLines $ lazyLines $ BS.fromChunks stream
+  let mbs = readBS hzGate
+  writeBS zvGate $ Zip.gunzip mbs
 
 gatedVect :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
 gatedVect zvGate input = do
-  let stream = drainChanBounded zvGate
-  feedChanBounded input $ toVectorsIO nLines $ S.map L.fromStrict stream
+  let mbs = readBS zvGate
+  feedChanBounded input $ Refactor.vectorLines mbs
 
-
+gatedVect' :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
+gatedVect' zvGate input = do
+  let mbs = readBS zvGate
+  feedChanBounded input $ Refactor.vectorLineSplit mbs

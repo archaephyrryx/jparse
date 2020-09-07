@@ -85,10 +85,12 @@ streamZeptoHttp = zeptoMainHttp
 dist :: Bool -> ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
 dist True = distributorGated
 dist False = distributor
+{-# INLINE dist #-}
 
 distHttp :: Bool -> ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
 distHttp True = distributorHttpGated
 distHttp False = distributorHttp
+{-# INLINE distHttp #-}
 
 zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
 zeptoMain z isZipped isGated = do

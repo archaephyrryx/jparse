@@ -1,6 +1,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE BangPatterns #-}
-module Final (toVector, toVectorIO, toVectorsIO, toVectorsLBS) where
+
+module Vectorize
+  ( toVector
+  , toVectorIO
+  , toVectorsIO
+  , toVectorsLBS
+  ) where
 
 import Data.Monoid (Monoid(..))
 import Data.Semigroup ((<>))

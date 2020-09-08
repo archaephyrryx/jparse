@@ -20,7 +20,7 @@ import qualified Streaming.Prelude as S
 import qualified Streaming.Zip as Zip
 
 import Driver.Internal
-import Final
+import Vectorize
 import Global
 
 import qualified Streams as Refactor
@@ -68,6 +68,7 @@ distributorGated input True = do
 distributorGated input False = do
   async $ stdinRawSource input
   return ()
+{-# INLINE distributorGated #-}
 
 distributorHttpGated :: ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
 distributorHttpGated input url True = do
@@ -79,34 +80,31 @@ distributorHttpGated input url True = do
   return ()
 distributorHttpGated input url False = do
   hvGate <- newChanBounded uBound_gate
-  httpThread <- async $ httpSource hvGate url
-  link httpThread
+  link =<< async (httpSource hvGate url)
   async $ gatedVect hvGate input
   return ()
+{-# INLINE distributorHttpGated #-}
 
 httpSource :: ChanBounded B.ByteString -> String -> IO ()
 httpSource hzGate url = runResourceT $ writeBS hzGate $ Refactor.getHttp url
+{-# INLINE httpSource #-}
 
 stdinGZSource :: ChanBounded B.ByteString -> IO ()
-stdinGZSource zvGate = writeBS zvGate $ Zip.gunzip BS.stdin
+stdinGZSource zvGate = writeBS zvGate $ Zip.gunzip Refactor.getStdin
+{-# INLINE stdinGZSource #-}
 
 stdinRawSource :: ChanBounded (Vector L.ByteString) -> IO ()
-stdinRawSource input = feedChanBounded input Refactor.vecStream
-
-stdinRawSourceSplit :: ChanBounded (Vector L.ByteString) -> IO ()
-stdinRawSourceSplit input = feedChanBounded input Refactor.vecStreamSplit
+stdinRawSource input = feedChanBounded input Refactor.vecStreamSplit
+{-# INLINE stdinRawSource #-}
 
 gatedGZ :: ChanBounded B.ByteString -> ChanBounded B.ByteString -> IO ()
 gatedGZ hzGate zvGate = do
   let mbs = readBS hzGate
   writeBS zvGate $ Zip.gunzip mbs
+{-# INLINE gatedGZ #-}
 
 gatedVect :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
 gatedVect zvGate input = do
   let mbs = readBS zvGate
-  feedChanBounded input $ Refactor.vectorLines mbs
-
-gatedVect' :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
-gatedVect' zvGate input = do
-  let mbs = readBS zvGate
   feedChanBounded input $ Refactor.vectorLineSplit mbs
+{-# INLINE gatedVect #-}

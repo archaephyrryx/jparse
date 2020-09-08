@@ -27,7 +27,7 @@ import Control.Exception.Base (try)
 
 -- local module imports
 
-import Final (toVectorsIO, toVectorsLBS)
+import Vectorize (toVectorsIO, toVectorsLBS)
 import Global
 import Helper
 

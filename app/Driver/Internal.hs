@@ -38,61 +38,19 @@ import Control.Concurrent.STM.TVar
 import qualified Control.Concurrent.BoundedChan as BC
 import Control.Concurrent.BoundedChan (BoundedChan, newBoundedChan)
 
-{-
-data ChanBounded a =
-     ChanBounded { chan :: Chan a
-                 , tlim :: TVar Int
-                 , nlim :: !Int
-                 }
--}
 type ChanBounded a = BoundedChan a
 
 newChanBounded :: Int -> IO (ChanBounded a)
 newChanBounded = newBoundedChan
-{-
-newChanBounded nlim = do
-    chan <- newChan
-    tlim <- newTVarIO 0
-    return ChanBounded{..}
--}
 {-# INLINE newChanBounded #-}
 
 writeChanBounded :: ChanBounded a -> a -> IO ()
 writeChanBounded = BC.writeChan
-{-
-writeChanBounded ChanBounded{..} val = do
-  atomically $ do
-    level <- readTVar tlim
-    when (level >= nlim) retry
-  atomically $ modifyTVar tlim succ
-  writeChan chan val
--}
 {-# INLINE writeChanBounded #-}
 
 readChanBounded :: ChanBounded a -> IO a
 readChanBounded = BC.readChan
-{-
-readChanBounded ChanBounded{..} = do
-  atomically $ modifyTVar tlim pred
-  readChan chan
--}
 {-# INLINE readChanBounded #-}
-
-
--- | number of worker threads to run Zepto parsing in parallel
-nWorkers :: IO Int
-nWorkers = getNumCapabilities
-{-# INLINE nWorkers #-}
-
--- | Upper bound on number of unprocessed items in an input flow-control gate
-uBound_gate :: Int
-uBound_gate = 64
-{-# INLINE uBound_gate #-}
-
--- | Upper bound on number of unprocessed items in produce-consumer channels
-uBound_work :: Int
-uBound_work = 128
-{-# INLINE uBound_work #-}
 
 -- | Conversion between Chan and Stream
 feedChan :: (MonadIO m, Monoid a) => Chan a -> Stream (Of a) m r -> m ()

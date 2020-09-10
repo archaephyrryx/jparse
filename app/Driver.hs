@@ -9,6 +9,8 @@
 
 module Driver where
 
+import Prelude hiding (getLine)
+
 import qualified Data.Attoparsec.ByteString as A
 
 import Data.Semigroup ((<>))
@@ -53,6 +55,8 @@ import qualified Parse.Parser.ZeptoStream as ZS
 
 import Vectorize
 import Global
+import Helper
+import Bundle
 
 import Driver.Internal
 import Driver.Distributor
@@ -144,7 +148,7 @@ labor :: ChanBounded (Maybe ByteString)
       -> Bundle L.ByteString
       -> IO ()
 labor output z bnd = do
-  let bld = foldrBundle (accZepto z) (mempty :: Builder) bnd
+  let bld = refoldBundle getLine (accZepto z) (mempty :: Builder) bnd
       !bs = build bld
   writeChanBounded output (Just bs)
 

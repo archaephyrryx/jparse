@@ -3,6 +3,7 @@ module Helper
   , fi
   , cond
   , elseId
+  , refold
   ) where
 
 
@@ -22,3 +23,11 @@ elseId :: Bool -> (a -> a) -> a -> a
 elseId True  f x = f x
 elseId False _ x = x
 {-# INLINE elseId #-}
+
+refold :: (b -> Maybe (a, b)) -> (a -> c -> c) -> c -> b -> c
+refold g f z = go
+  where
+    go x = case g x of
+      Nothing -> z
+      Just (a, x') -> f a $ go x'
+{-# INLINE refold #-}

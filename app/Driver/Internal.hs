@@ -24,6 +24,7 @@ import qualified Streaming.Prelude as S
 import Streaming.Internal (Stream(..))
 
 import Global
+import Bundle
 
 import Data.Vector (Vector)
 import qualified Data.Vector as V
@@ -106,16 +107,7 @@ readBS cb = go
         else return $ Chunk b go
 {-# INLINE readBS #-}
 
--- | Abstraction around list or vector of elements
-type Bundle a = Vector a
 
-foldrBundle :: (a -> b -> b) -> b -> Bundle a -> b
-foldrBundle = V.foldr
-{-# INLINE foldrBundle #-}
-
-nullBundle :: Bundle a -> Bool
-nullBundle = V.null
-{-# INLINE nullBundle #-}
 
 -- | set of common synchronization values for concurrent linemode
 data ZEnv
@@ -151,3 +143,12 @@ toStricts = S.mapped _toStrict
       return (L.toStrict lbs :> ret)
     {-# INLINE _toStrict #-}
 {-# INLINE toStricts #-}
+
+getLine :: L.ByteString -> Maybe (L.ByteString, L.ByteString)
+getLine lb
+  | L.null lb = Nothing
+  | otherwise =
+    case L.elemIndex 0xa lb of
+      Nothing  -> Just (lb, L.empty)
+      Just !ix -> Just (L.take ix lb, L.drop (ix+1) lb)
+{-# INLINE getLine #-}

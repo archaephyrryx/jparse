@@ -3,7 +3,7 @@ module Driver.Distributor where
 import Control.Concurrent.Async
 
 import Control.Monad.IO.Class (MonadIO(..), liftIO)
-import Control.Monad.Trans.Resource (runResourceT)
+import Control.Monad.Trans.Resource (MonadResource, runResourceT)
 
 import Data.Vector (Vector)
 
@@ -23,38 +23,39 @@ import Driver.Internal
 import Vectorize
 import Global
 
-import qualified Streams as Refactor
+import Streams as Refactor
 
 import Helper
+import Bundle
 
 -- * Ungated version
 
 distributor :: ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
 distributor input isZipped = async go >> pure ()
   where
-    src = Refactor.vecStreamSplitOf isZipped
+    src = S.map VectorOf $ Refactor.vecStreamSplitOf isZipped
     {-# INLINE src #-}
 
-    go = S.mapM_ (writeChanBounded input) src >> writeChanBounded input mempty
-    {-# INLINE go  #-}
+    src' :: Stream (Of (Bundle L.ByteString)) IO ()
+    src' = S.map SingleOf $ lazyLineSplit $ condUnzip getStdin isZipped
+    {-# INLINE src' #-}
 
-    go' = feedChanBounded input $ src
-    {-# INLINE go' #-}
+    go = feedChanBounded input src'
+    {-# INLINE go #-}
 {-# INLINE distributor #-}
 
 distributorHttp :: ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
 distributorHttp input url isZipped = async go >>= link
   where
-    src = Refactor.vecStreamSplitOfHttp url isZipped
+    src = S.map VectorOf $ Refactor.vecStreamSplitOfHttp url isZipped
     {-# INLINE src #-}
 
-    go = do
-      runResourceT $ S.mapM_ (liftIO . writeChanBounded input) src
-      writeChanBounded input mempty
-    {-# INLINE go  #-}
+    src' :: MonadResource m => Stream (Of (Bundle L.ByteString)) m ()
+    src' = S.map SingleOf $ lazyLineSplit $ condUnzip (getHttp url) isZipped
+    {-# INLINE src' #-}
 
-    go' = runResourceT $ feedChanBounded input src
-    {-# INLINE go' #-}
+    go = runResourceT $ feedChanBounded input src
+    {-# INLINE go #-}
 {-# INLINE distributorHttp #-}
 
 -- * Gated Version
@@ -93,8 +94,10 @@ stdinGZSource :: ChanBounded B.ByteString -> IO ()
 stdinGZSource zvGate = writeBS zvGate $ Zip.gunzip Refactor.getStdin
 {-# INLINE stdinGZSource #-}
 
-stdinRawSource :: ChanBounded (Vector L.ByteString) -> IO ()
-stdinRawSource input = feedChanBounded input Refactor.vecStreamSplit
+stdinRawSource :: ChanBounded (Bundle L.ByteString) -> IO ()
+stdinRawSource input = feedChanBounded input
+                     $ S.map VectorOf
+                     $ Refactor.vecStreamSplit
 {-# INLINE stdinRawSource #-}
 
 gatedGZ :: ChanBounded B.ByteString -> ChanBounded B.ByteString -> IO ()
@@ -103,8 +106,14 @@ gatedGZ hzGate zvGate = do
   writeBS zvGate $ Zip.gunzip mbs
 {-# INLINE gatedGZ #-}
 
-gatedVect :: ChanBounded B.ByteString -> ChanBounded (Vector L.ByteString) -> IO ()
+gatedVect :: ChanBounded B.ByteString -> ChanBounded (Bundle L.ByteString) -> IO ()
 gatedVect zvGate input = do
   let mbs = readBS zvGate
-  feedChanBounded input $ Refactor.vectorLineSplit mbs
+  feedChanBounded input $ S.map VectorOf $ Refactor.vectorLineSplit mbs
 {-# INLINE gatedVect #-}
+
+gatedSingle :: ChanBounded B.ByteString -> ChanBounded (Bundle L.ByteString) -> IO ()
+gatedSingle zvGate input = do
+  let mbs = readBS zvGate
+  feedChanBounded input $ S.map SingleOf $ Refactor.lazyLineSplit mbs
+{-# INLINE gatedSingle #-}

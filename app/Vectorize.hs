@@ -8,6 +8,8 @@ module Vectorize
   , toVectorsLBS
   ) where
 
+import Prelude hiding (getLine)
+
 import Data.Monoid (Monoid(..))
 import Data.Semigroup ((<>))
 
@@ -30,6 +32,8 @@ import qualified Data.Vector as V
 
 import Control.Monad.Trans.State.Strict
 import Data.IORef
+
+import Driver.Internal (getLine)
 
 unconsFinal :: Monad m => Stream (Of a) m r -> StateT r m (Maybe (a, Stream (Of a) m r))
 unconsFinal = loop
@@ -110,19 +114,13 @@ toVectorsIO size st = liftIO (newIORef st) >>= go
 
 -- XXX: figure out which version of vectorLines is better (both seem to have similar performance)
 toVectorsLBS :: MonadIO m => Int -> Stream (Of L.ByteString) m r -> Stream (Of (Vector L.ByteString)) m r
-toVectorsLBS size = S.map vectorLines
+toVectorsLBS size = S.map vectorLines'
   where
     vectorLines :: L.ByteString -> Vector L.ByteString
     vectorLines lb = V.fromListN size $ L8.lines lb
 
     vectorLines' :: L.ByteString -> Vector L.ByteString
     vectorLines' lb = V.unfoldrN size getLine lb
-      where
-        getLine lb | L.null lb = Nothing
-                   | otherwise = case L.elemIndex 0xa lb of
-                      Nothing  -> Just (lb, L.empty)
-                      Just !ix -> Just (L.take ix lb, L.drop (ix+1) lb)
-        {-# INLINE getLine #-}
     {-# INLINE vectorLines #-}
     {-# INLINE vectorLines' #-}
 {-# INLINE toVectorsLBS #-}

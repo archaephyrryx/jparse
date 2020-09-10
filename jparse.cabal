@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f50e8b2223df8ad1e6a258ab9525d4a0b3b576b8f7a9204023d706a880d49ba3
+-- hash: 50af5a6b0d14e0971f1cc37ec4d8f5f79d76ef0d23a96625e08381f8fac99c01
 
 name:           jparse
 version:        0.1.0.0
@@ -68,6 +68,7 @@ library
 executable jparse-exe
   main-is: Main.hs
   other-modules:
+      Bundle
       Driver
       Driver.Distributor
       Driver.Internal

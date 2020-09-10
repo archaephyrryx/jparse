@@ -53,17 +53,11 @@ import qualified Parse.Parser.Zepto as Z
 import qualified Parse.ReadStream as ZepS
 import qualified Parse.Parser.ZeptoStream as ZS
 
-import Vectorize
 import Global
 import Helper
-import Bundle
 
 import Driver.Internal
 import Driver.Distributor
-
-
-import Data.Vector (Vector)
-import qualified Data.Vector as V
 
 -- Concurrency mode
 import Control.Concurrent
@@ -86,12 +80,12 @@ streamZepto = zeptoMain
 streamZeptoHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
 streamZeptoHttp = zeptoMainHttp
 
-dist :: Bool -> ChanBounded (Bundle L.ByteString) -> Bool -> IO ()
+dist :: Bool -> ChanBounded L.ByteString -> Bool -> IO ()
 dist True = distributorGated
 dist False = distributor
 {-# INLINE dist #-}
 
-distHttp :: Bool -> ChanBounded (Bundle L.ByteString) -> String -> Bool -> IO ()
+distHttp :: Bool -> ChanBounded L.ByteString -> String -> Bool -> IO ()
 distHttp True = distributorHttpGated
 distHttp False = distributorHttp
 {-# INLINE distHttp #-}
@@ -128,7 +122,7 @@ collector output = go
            Just bs -> B.putStr bs >> go
            Nothing -> return ()
 
-worker :: ChanBounded (Bundle L.ByteString)
+worker :: ChanBounded L.ByteString
        -> ChanBounded (Maybe ByteString)
        -> TVar Int
        -> Z.Parser (Maybe Builder)
@@ -136,19 +130,19 @@ worker :: ChanBounded (Bundle L.ByteString)
 worker input output nw z = go
   where
     go = do
-      bnd <- readChanBounded input
-      if nullBundle bnd
+      lbs <- readChanBounded input
+      if L.null lbs
          then do
            atomically $ modifyTVar nw pred
-           writeChanBounded input bnd
-         else labor output z bnd >> go
+           writeChanBounded input lbs
+         else labor output z lbs >> go
 
 labor :: ChanBounded (Maybe ByteString)
       -> Z.Parser (Maybe Builder)
-      -> Bundle L.ByteString
+      -> L.ByteString
       -> IO ()
-labor output z bnd = do
-  let bld = refoldBundle getLine (accZepto z) (mempty :: Builder) bnd
+labor output z lbs = do
+  let bld = refold getLine (accZepto z) (mempty :: Builder) lbs
       !bs = build bld
   writeChanBounded output (Just bs)
 

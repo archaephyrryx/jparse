@@ -24,10 +24,6 @@ import qualified Streaming.Prelude as S
 import Streaming.Internal (Stream(..))
 
 import Global
-import Bundle
-
-import Data.Vector (Vector)
-import qualified Data.Vector as V
 
 -- Concurrency mode
 import Control.Concurrent
@@ -114,7 +110,7 @@ data ZEnv
    = ZEnv
      { nworkers :: Int -- ^ number of workers (runtime)
      , nw :: TVar Int -- ^ number of unterminated worker threads
-     , input :: ChanBounded (Bundle L.ByteString) -- ^ channel for unparsed input
+     , input :: ChanBounded L.ByteString -- ^ channel for unparsed input
      , output :: ChanBounded (Maybe B.ByteString) -- ^ channel for parsed output
      }
 

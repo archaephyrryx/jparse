@@ -18,16 +18,11 @@ import           Streaming.Internal (Stream(..))
 import qualified Streaming.Prelude as S
 import qualified Streaming.Zip as Zip
 
-import           Data.Vector (Vector)
-import qualified Data.Vector as V
-
-
 import Control.Exception.Base (try)
 
 
 -- local module imports
 
-import Vectorize (toVectorsIO, toVectorsLBS)
 import Global
 import Helper
 
@@ -35,7 +30,6 @@ import Helper
 
 type MBStream m r = Stream (BS.ByteString m) m r
 type LBStream m r = Stream (Of L.ByteString) m r
-type VLStream m r = Stream (Of (Vector L.ByteString)) m r
 
 
 -- | Name-standardized alias for 'BS.stdin'
@@ -108,40 +102,33 @@ streamlinesGZ = stdinLines True
 
 -- * Vectorization combinators and fusions
 
-vectorLines, vectorLineSplit :: MonadIO m => BS.ByteString m () -> VLStream m ()
-vectorLines     = toVectorsIO  nLines . lazyLines
-vectorLineSplit = toVectorsLBS nLines . lazyLineSplit
+lbsStream, lbsStreamSplit :: LBStream IO ()
+lbsStream      = lazyLines     getStdin
+lbsStreamSplit = lazyLineSplit getStdin
 
-{-# INLINE vectorLines #-}
-{-# INLINE vectorLineSplit #-}
+lbsStreamGZ, lbsStreamSplitGZ :: LBStream IO ()
+lbsStreamGZ      = lazyLines     $ Zip.gunzip getStdin
+lbsStreamSplitGZ = lazyLineSplit $ Zip.gunzip getStdin
 
-vecStream, vecStreamSplit :: VLStream IO ()
-vecStream      = vectorLines     getStdin
-vecStreamSplit = vectorLineSplit getStdin
+lbsStreamOf, lbsStreamSplitOf :: Bool -> LBStream IO ()
+lbsStreamOf      = lazyLines     . condUnzip getStdin
+lbsStreamSplitOf = lazyLineSplit . condUnzip getStdin
 
-vecStreamGZ, vecStreamSplitGZ :: VLStream IO ()
-vecStreamGZ      = vectorLines     $ Zip.gunzip getStdin
-vecStreamSplitGZ = vectorLineSplit $ Zip.gunzip getStdin
+{-# INLINE lbsStream #-}
+{-# INLINE lbsStreamGZ #-}
+{-# INLINE lbsStreamOf #-}
 
-vecStreamOf, vecStreamSplitOf :: Bool -> VLStream IO ()
-vecStreamOf      = vectorLines     . condUnzip getStdin
-vecStreamSplitOf = vectorLineSplit . condUnzip getStdin
+{-# INLINE lbsStreamSplit #-}
+{-# INLINE lbsStreamSplitGZ #-}
+{-# INLINE lbsStreamSplitOf #-}
 
-{-# INLINE vecStream #-}
-{-# INLINE vecStreamGZ #-}
-{-# INLINE vecStreamOf #-}
+lbsStreamOfHttp, lbsStreamSplitOfHttp :: (MonadResource m, MonadIO m)
+                                      => String -> Bool -> LBStream m ()
+lbsStreamOfHttp      url = lazyLines     . condUnzip (getHttp url)
+lbsStreamSplitOfHttp url = lazyLineSplit . condUnzip (getHttp url)
 
-{-# INLINE vecStreamSplit #-}
-{-# INLINE vecStreamSplitGZ #-}
-{-# INLINE vecStreamSplitOf #-}
-
-vecStreamOfHttp, vecStreamSplitOfHttp :: (MonadResource m, MonadIO m)
-                                      => String -> Bool -> VLStream m ()
-vecStreamOfHttp      url = vectorLines     . condUnzip (getHttp url)
-vecStreamSplitOfHttp url = vectorLineSplit . condUnzip (getHttp url)
-
-{-# INLINE vecStreamOfHttp #-}
-{-# INLINE vecStreamSplitOfHttp #-}
+{-# INLINE lbsStreamOfHttp #-}
+{-# INLINE lbsStreamSplitOfHttp #-}
 
 -- * Helper Functions
 

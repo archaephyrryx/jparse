@@ -100,7 +100,7 @@ streamlinesGZ = stdinLines True
 {-# INLINE streamlinesGZ #-}
 
 
--- * Vectorization combinators and fusions
+-- * Lazy ByteString combinators and fusions
 
 lbsStream, lbsStreamSplit :: LBStream IO ()
 lbsStream      = lazyLines     getStdin

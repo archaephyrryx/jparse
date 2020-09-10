@@ -5,8 +5,6 @@ import Control.Concurrent.Async
 import Control.Monad.IO.Class (MonadIO(..), liftIO)
 import Control.Monad.Trans.Resource (MonadResource, runResourceT)
 
-import Data.Vector (Vector)
-
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 

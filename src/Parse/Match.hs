@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -119,17 +120,16 @@ _char ~(w,t) q
 -- XXX: does _qquad deserve own bindings or should it capture h,l from scope ?
 -- | @Matcher@ that accepts all valid representations of UTF-16 surrogate pairs
 _surr :: DeconBS -> QuadPair -> Matcher
-_surr ~(w,t) (h,l)
+_surr ~(w,t) (!h,!l)
     = P.pop >>= \case
         x | x == w -> mark $ mapM_ P.word8 t
         Bslash -> P.pop >>= \case
-            Hex_u -> _qquad h l
-            _    -> fail
-        _    -> fail
-    where
-        _qquad :: Quad -> Quad -> P.Parser Res
-        _qquad hi lo = _quad hi >> P.word8 Bslash >> P.word8 Hex_u >> _quad lo
-        {-# INLINE _qquad #-}
+            Hex_u -> _quad h
+                  >> P.word8 Bslash
+                  >> P.word8 Hex_u
+                  >> _quad l
+            _     -> fail
+        _      -> fail
 
 -- | parseMatch : attempt to match against pre-classified query key,
 --   skipping to end of current string if a non-match is found

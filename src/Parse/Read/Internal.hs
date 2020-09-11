@@ -43,6 +43,7 @@ escAtom Esc_f = True
 escAtom Esc_n = True
 escAtom Esc_r = True
 escAtom Esc_t = True
+escAtom Bslash = True
 escAtom _     = False
 {-# INLINE escAtom #-}
 

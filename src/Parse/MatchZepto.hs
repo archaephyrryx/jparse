@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -12,13 +13,10 @@ module Parse.MatchZepto
 
 import           Prelude hiding (fail)
 import           Data.Word (Word8)
-
-import Parse.Match.Internal
-
+import           Parse.Match.Internal
 import qualified Parse.Parser.Zepto as P
-
-import Parse.ReadZepto (skipToEndQ)
-import Parse.Symbol
+import           Parse.ReadZepto (skipToEndQ)
+import           Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result
 _quad :: Quad -> P.Parser Res
@@ -119,17 +117,16 @@ _char ~(w,t) q
 
 -- | @Matcher@ that accepts all valid representations of UTF-16 surrogate pairs
 _surr :: DeconBS -> QuadPair -> Matcher
-_surr ~(w,t) (h,l)
+_surr ~(w,t) (!h,!l)
     = P.pop >>= \case
         x | x == w -> mark $ mapM_ P.word8 t
         Bslash -> P.pop >>= \case
-            Hex_u -> _qquad h l
-            _    -> fail
+            Hex_u -> _quad h
+                  >> P.word8 Bslash
+                  >> P.word8 Hex_u
+                  >> _quad l
+            _     -> fail
         _    -> fail
-    where
-        _qquad :: Quad -> Quad -> P.Parser Res
-        _qquad hi lo = _quad hi >> P.word8 Bslash >> P.word8 Hex_u >> _quad lo
-        {-# INLINE _qquad #-}
 
 -- | parseMatch : attempt to match against pre-classified query key,
 --   skipping to end of current string if a non-match is found

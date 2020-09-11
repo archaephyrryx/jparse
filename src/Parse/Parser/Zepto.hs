@@ -31,12 +31,9 @@ module Parse.Parser.Zepto
 import Control.Applicative
 import Control.Monad (MonadPlus(..), ap)
 import qualified Control.Monad.Fail as Fail
-import Control.Monad.IO.Class (MonadIO(..))
 import Data.ByteString (ByteString)
 import Data.ByteString.Seek (skipString)
-import Data.Functor.Identity (Identity(runIdentity))
 import Data.Monoid as Mon (Monoid(..))
-import Data.Semigroup (Semigroup(..))
 import Data.Word (Word8)
 import Prelude hiding (take, takeWhile)
 import qualified Data.ByteString as B

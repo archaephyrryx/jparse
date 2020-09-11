@@ -54,7 +54,6 @@ executables:
     - resourcet
     - stm
     - streaming-utils
-    - vector
 
 tests:
   jparse-test:

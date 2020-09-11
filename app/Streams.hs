@@ -4,22 +4,15 @@
 
 module Streams where
 
-import Control.Monad.IO.Class (MonadIO(..))
-
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
 
 import qualified Data.ByteString.Streaming.HTTP as H
-import Data.ByteString.Streaming.HTTP (MonadResource(..), HttpException(..))
+import Data.ByteString.Streaming.HTTP (MonadResource(..))
 
 import           Streaming
-import           Streaming.Internal (Stream(..))
-import qualified Streaming.Prelude as S
 import qualified Streaming.Zip as Zip
-
-import Control.Exception.Base (try)
-
 
 -- local module imports
 

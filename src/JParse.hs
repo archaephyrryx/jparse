@@ -21,21 +21,15 @@ import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 import           System.IO (stdout)
 
-import Data.Function (fix)
 import Data.Void (Void)
 
-import Parse hiding (fail)
+import Parse
 import qualified Parse.ReadAlt as R
 
 import qualified Parse.MatchZepto as Zep
 import qualified Parse.ReadZepto as Zep
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z
-
-import qualified Parse.MatchStream as ZepS
-import qualified Parse.ReadStream as ZepS
-import qualified Parse.Parser.ZeptoStream as ZS
-import qualified Parse.Parser.Stream as ZS
 
 
 -- | query key function: performs UTF-8 'ByteString' encoding
@@ -68,14 +62,6 @@ runParse = runParseWithC putLnBuilderC
 {-# INLINE runParse #-}
 
 -- | Run 'parseC' using a given parser over arbitrary upstream
--- and output the results using 'putLnBuilderC'
-runZepto :: (ByteString -> Z.Result (Maybe Builder))
-          -> C.ConduitT () ByteString IO ()
-          -> IO ()
-runZepto = runZeptoWithC putLnBuilderC
-{-# INLINE runZepto #-}
-
--- | Run 'parseC' using a given parser over arbitrary upstream
 -- and output the results using arbitrary function
 runParseWithC :: (MonadIO m, MonadFail m)
               => C.ConduitT (Maybe Builder) Void m a -- ^ sink on Maybe Builder values
@@ -95,29 +81,6 @@ runParseWithC mc parser source = C.runConduit $ source .| runParseC .| mc
                else parseC streamEmpty cleanState parser (parser bs')
       _       -> pure ()
 {-# INLINE runParseWithC #-}
-
--- | Run 'zeptoC' using a given parser over arbitrary upstream
--- and output the results using arbitrary function
---
--- Unlike runParseWithC, this splits input into lines before feeding
--- to downstream parser
-runZeptoWithC :: (MonadIO m, MonadFail m)
-              => C.ConduitT (Maybe Builder) Void m a -- ^ sink on Maybe Builder values
-              -> (ByteString -> Z.Result (Maybe Builder)) -- ^ parse function
-              -> C.ConduitT () ByteString m () -- ^ input conduit
-              -> m a
-runZeptoWithC mc parser source = C.runConduit $ source .| C.linesUnboundedAsciiC .| runZeptoC .| mc
-  where
-    {-# INLINE runZeptoC #-}
-    runZeptoC = C.await >>= \case
-      Just bs ->
-        let bs' = trim bs
-         in if B.null bs'
-               then runZeptoC
-               else zeptoC parser (parser bs') >> runZeptoC
-      _       -> pure ()
-{-# INLINE runZeptoWithC #-}
-
 
 -- | Conduit that feeds upstream ByteStrings into a Parser and yields Maybe Builders from successful parses
 --
@@ -158,24 +121,6 @@ parseC atEnd clean parser res =
                     -> parseC False clean parser $! res -- retry upstream when output only whitespace
     A.Fail i ctx e -> fail $ show (i, ctx, e)
 
-
--- | Conduit that feeds upstream ByteStrings into a ZeptoStream Parser and yields Maybe Builders from successful parses
---
---   Recurses until end of output is reached and retrieves additonal ByteString
---   output from upstream each pass, until parser yields Done or Fail result.
---
---   Designed around 'seekInObj', which has the property that as soon as a positive or
---   negative result has been decided for each JSON object encountered, the remainder of
---   that JSON object is skipped.
-zeptoC :: (MonadIO m, MonadFail m)
-       => (ByteString -> Z.Result (Maybe Builder)) -- ^ primary parser
-       -> Z.Result (Maybe Builder) -- ^ most recent parse result
-       -> C.ConduitT ByteString (Maybe Builder) m ()
-zeptoC parser res =
-  case res of
-    Z.OK result st -> C.yield result
-    Z.Fail str -> fail str
-
 -- | Extract bytestring-valued key from a JSON object
 --
 --   Argument is a list of ParseClass values corresponding to
@@ -208,16 +153,6 @@ seekInObjZepto cs = do
         Quote -> getStringValueZepto cs
         _    -> mzero
 {-# INLINE seekInObjZepto #-}
-
--- | version using 'getStringValueZeptoStream'
-seekInObjZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
-seekInObjZeptoStream cs = do
-    ZS.symbol LBrace
-    ZS.pop >>= \case
-        RBrace -> pure Nothing
-        Quote -> getStringValueZeptoStream cs
-        _    -> mzero
-{-# INLINE seekInObjZeptoStream #-}
 
 -- | Extract bytestring-valued key from a sequence of key-value pairs inside a
 -- JSON object, then consume and discard the tail of the object throug the
@@ -264,17 +199,3 @@ getStringValueZepto ckey = do
                   RBrace -> pure Nothing
                   _ -> mzero
 {-# INLINE getStringValueZepto #-}
-
--- | version using 'ZepS.parseMatch' and Parse.ReadStream variant functions
-getStringValueZeptoStream :: [ParseClass] -> ZS.Parser (Maybe Builder)
-getStringValueZeptoStream ckey = do
-    this <- ZepS.parseMatch ckey
-    if this
-       then do ZS.symbol Colon <* ZS.word8 Quote
-               Just <$> ZepS.parseToEndQ <* ZepS.skipRestObj
-       else do ZS.symbol Colon *> ZepS.skipValue
-               ZS.token >>= \case
-                  Comma -> ZS.word8 Quote *> getStringValueZeptoStream ckey
-                  RBrace -> pure Nothing
-                  _ -> mzero
-{-# INLINE getStringValueZeptoStream #-}

@@ -3,14 +3,14 @@
 
 module Data.ByteString.Seek ( skipString ) where
 
-import Data.ByteString          (empty, ByteString)
+import Data.ByteString          (ByteString)
 import Data.ByteString.Internal (ByteString(..), accursedUnutterablePerformIO)
 
 import Data.Word (Word8)
 
-import Foreign.Ptr              (Ptr, FunPtr, plusPtr, minusPtr, nullPtr)
+import Foreign.Ptr              (Ptr, plusPtr, minusPtr, nullPtr)
 import Foreign.C.Types          (CSize(..))
-import Foreign.ForeignPtr       (ForeignPtr, withForeignPtr, touchForeignPtr)
+import Foreign.ForeignPtr       (withForeignPtr)
 
 
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 49263ef5747f32e5a9956f9164be163dc69d1ba5decb3021a98a320b5bdfd181
+-- hash: a57c6e176af4df8e76b9e0533192dd7ab759e3a026128330970d5db1d9a94e72
 
 name:           jparse
 version:        0.1.0.0
@@ -32,18 +32,13 @@ library
       Parse
       Parse.Match
       Parse.Match.Internal
-      Parse.MatchStream
       Parse.MatchZepto
       Parse.Parser
       Parse.Parser.Attoparsec
-      Parse.Parser.Internal
-      Parse.Parser.Stream
       Parse.Parser.Zepto
-      Parse.Parser.ZeptoStream
       Parse.Read
       Parse.Read.Internal
       Parse.ReadAlt
-      Parse.ReadStream
       Parse.ReadZepto
       Parse.Symbol
   other-modules:
@@ -96,7 +91,6 @@ executable jparse-exe
     , streaming-utils
     , text
     , transformers
-    , vector
   default-language: Haskell2010
 
 test-suite jparse-test

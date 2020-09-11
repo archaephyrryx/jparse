@@ -2,18 +2,11 @@ module Driver.Distributor where
 
 import Control.Concurrent.Async
 
-import Control.Monad.IO.Class (MonadIO(..), liftIO)
-import Control.Monad.Trans.Resource (MonadResource, runResourceT)
+import Control.Monad.Trans.Resource (runResourceT)
+import Control.Monad (void)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-
-import qualified Data.ByteString.Streaming as BS
-import qualified Data.ByteString.Streaming.Char8 as BS8
-
-import Streaming
-import Streaming.Internal (Stream(..))
-import qualified Streaming.Prelude as S
 
 import qualified Streaming.Zip as Zip
 
@@ -22,55 +15,60 @@ import Global
 
 import Streams
 
-import Helper
+-- | helper to suppress unused-do-binding warnings
+vsync :: IO a -> IO ()
+vsync = void . async
+{-# INLINE vsync #-}
+
 
 -- * Ungated version
 
+
 distributor :: ChanBounded L.ByteString -> Bool -> IO ()
-distributor input isZipped = async go >> pure ()
+distributor inp isZipped = async go >> pure ()
   where
     src = lbsStreamSplitOf isZipped
     {-# INLINE src #-}
 
-    go = feedChanBounded input src
+    go = feedChanBounded inp src
     {-# INLINE go #-}
 {-# INLINE distributor #-}
 
 distributorHttp :: ChanBounded L.ByteString -> String -> Bool -> IO ()
-distributorHttp input url isZipped = async go >>= link
+distributorHttp inp url isZipped = async go >>= link
   where
     src = lbsStreamSplitOfHttp url isZipped
     {-# INLINE src #-}
 
-    go = runResourceT $ feedChanBounded input src
+    go = runResourceT $ feedChanBounded inp src
     {-# INLINE go #-}
 {-# INLINE distributorHttp #-}
 
 -- * Gated Version
 
 distributorGated :: ChanBounded L.ByteString -> Bool -> IO ()
-distributorGated input True = do
+distributorGated inp True = do
   zlGate <- newChanBounded uBound_gate
-  async $ stdinGZSource zlGate
-  async $ gatedLazy zlGate input
+  vsync $ stdinGZSource zlGate
+  vsync $ gatedLazy zlGate inp
   return ()
-distributorGated input False = do
-  async $ stdinRawSource input
+distributorGated inp False = do
+  vsync $ stdinRawSource inp
   return ()
 {-# INLINE distributorGated #-}
 
 distributorHttpGated :: ChanBounded L.ByteString -> String -> Bool -> IO ()
-distributorHttpGated input url True = do
+distributorHttpGated inp url True = do
   hzGate <- newChanBounded uBound_gate
   zlGate <- newChanBounded uBound_gate
   link =<< async (httpSource hzGate url)
-  async $ gatedGZ hzGate zlGate
-  async $ gatedLazy zlGate input
+  vsync $ gatedGZ hzGate zlGate
+  vsync $ gatedLazy zlGate inp
   return ()
-distributorHttpGated input url False = do
+distributorHttpGated inp url False = do
   hlGate <- newChanBounded uBound_gate
   link =<< async (httpSource hlGate url)
-  async $ gatedLazy hlGate input
+  vsync $ gatedLazy hlGate inp
   return ()
 {-# INLINE distributorHttpGated #-}
 
@@ -83,7 +81,7 @@ stdinGZSource zlGate = writeBS zlGate $ Zip.gunzip getStdin
 {-# INLINE stdinGZSource #-}
 
 stdinRawSource :: ChanBounded L.ByteString -> IO ()
-stdinRawSource input = feedChanBounded input $ lazyLineSplit getStdin
+stdinRawSource inp = feedChanBounded inp $ lazyLineSplit getStdin
 {-# INLINE stdinRawSource #-}
 
 gatedGZ :: ChanBounded B.ByteString -> ChanBounded B.ByteString -> IO ()
@@ -93,7 +91,7 @@ gatedGZ hzGate zlGate = do
 {-# INLINE gatedGZ #-}
 
 gatedLazy :: ChanBounded B.ByteString -> ChanBounded L.ByteString -> IO ()
-gatedLazy zlGate input = do
+gatedLazy zlGate inp = do
   let mbs = readBS zlGate
-  feedChanBounded input $ lazyLineSplit mbs
+  feedChanBounded inp $ lazyLineSplit mbs
 {-# INLINE gatedLazy #-}

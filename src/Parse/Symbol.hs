@@ -31,7 +31,8 @@ symbol :: Word8 -> A.Parser ()
 symbol w = A.word8 w *> A.skipSpace
 {-# INLINE symbol #-}
 
--- | token : parses an arbitrary single-character token and any trailing whitespace
+-- | token : parses an arbitrary single-character token and skips any trailing whitespace
+token :: A.Parser Word8
 token = A.anyWord8 <* A.skipSpace
 {-# INLINE token #-}
 

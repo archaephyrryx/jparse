@@ -6,14 +6,8 @@
 module Options where
 
 import Data.ByteString (ByteString)
-
-import Data.List (stripPrefix)
-import Data.Maybe (isJust, fromJust, mapMaybe)
-
 import JParse (qkey)
-
 import Options.Applicative
-import Data.Semigroup ((<>))
 
 
 type Qstring = ByteString

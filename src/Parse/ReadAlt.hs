@@ -6,15 +6,13 @@
 
 module Parse.ReadAlt where
 
-import           Control.Applicative ((<|>))
-import           Control.Monad (mzero, void, when)
+import           Control.Monad (mzero, when)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8, skipSpace)
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
-import qualified Data.ByteString.Char8 as S8
 import           Data.Word (Word8)
 
 import           Parse.Symbol
@@ -71,7 +69,8 @@ skipToEndQ = skipQUnit >> A.skipSpace
     {-# INLINE skipQUnit #-}
 {-# INLINE skipToEndQ #-}
 
--- | basic parser that interprets escaped characters (except backslash)
+-- XXX: SHOULD HANDLE BACKSLASH HERE OR IN CALLER
+-- | basic parser that interprets escaped characters
 parseEscaped :: A.Parser Builder
 parseEscaped =
   A.anyWord8 >>= \case
@@ -79,6 +78,7 @@ parseEscaped =
     Hex_u -> do
       q <- parseHex
       pure $ D.word8 Hex_u <> D.byteString q
+    _ -> mzero
 {-# INLINE parseEscaped #-}
 
 -- | parses uXXXX hexcodes (without initial u)
@@ -88,9 +88,6 @@ parseHex = do
   if B.all isHexChar q
      then pure q
      else mzero
-  where
-    parseHexChar = A.satisfy isHexChar
-    {-# INLINE parseHexChar #-}
 {-# INLINE parseHex #-}
 
 -- | universal parser that skips over arbitrary-type JSON values

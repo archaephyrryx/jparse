@@ -24,8 +24,7 @@ module Parse.Match.Internal
   where
 
 import           Prelude hiding (fail)
-import           Control.Applicative ((<|>))
-import           Control.Monad (mzero, void, when, MonadPlus(..))
+import           Control.Monad (MonadPlus(..))
 import           Data.Bits
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
@@ -136,6 +135,7 @@ _class b = case B.uncons b of
                  | otherwise -> _invalidUnicodeError
     _ -> undefined -- unchecked end-of-bytestring
 
+_invalidUnicodeError :: (ParseClass, ByteString)
 _invalidUnicodeError = error "encountered invalid unicode byte in query string"
 
 -- | Maps every codepoint in a ByteString to a corresponding 'ParseClass' value

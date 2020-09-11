@@ -9,12 +9,11 @@ module Parse.Read where
 import           Control.Applicative ((<|>))
 import           Control.Monad (mzero, void, when)
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8, skipSpace)
+import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, skipSpace)
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
-import qualified Data.ByteString.Char8 as S8
 import           Data.Word (Word8)
 
 import           Parse.Symbol
@@ -88,6 +87,7 @@ parseEscaped =
     Hex_u -> do
       q <- parseHex
       pure $ D.word8 Hex_u <> D.byteString q
+    _ -> mzero
 {-# INLINE parseEscaped #-}
 
 -- | parses uXXXX hexcodes (without initial u)
@@ -97,9 +97,6 @@ parseHex = do
   if B.all isHexChar q
      then pure q
      else mzero
-  where
-    parseHexChar = A.satisfy isHexChar
-    {-# INLINE parseHexChar #-}
 {-# INLINE parseHex #-}
 
 

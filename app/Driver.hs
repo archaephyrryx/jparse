@@ -11,65 +11,24 @@ module Driver where
 
 import Prelude hiding (getLine)
 
-import qualified Data.Attoparsec.ByteString as A
-
-import Data.Semigroup ((<>))
-
-import Control.Monad.IO.Class (MonadIO(..))
-
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Char8 as S8
 import Data.ByteString (ByteString)
 
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
-import qualified Data.ByteString.Builder.Extra as D
 
-import Data.Either (isLeft, fromLeft)
-
-import qualified Conduit as C
-import qualified Data.Conduit as C
-import qualified Data.Conduit.Combinators as C
-import Data.Conduit ((.|))
-
-import qualified Data.ByteString.Streaming as BS
-import qualified Data.ByteString.Streaming.Char8 as BS8
-
-import Streaming
-import qualified Streaming.Prelude as S
-import Streaming.Internal (Stream(..))
-
-import qualified Streaming.Zip as Zip
-
-import JParse
-import Parse
-
-import qualified Parse.ReadAlt as Alt
-
-import qualified Parse.ReadZepto as Zep
 import qualified Parse.Parser.Zepto as Z
 
-import qualified Parse.ReadStream as ZepS
-import qualified Parse.Parser.ZeptoStream as ZS
-
-import Global
 import Helper
 
 import Driver.Internal
 import Driver.Distributor
 
 -- Concurrency mode
-import Control.Concurrent
 import Control.Concurrent.Async
-import Control.Concurrent.Chan
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TVar
-import Control.Monad (replicateM_, unless, when)
-import System.IO (stdout)
-import System.Environment
-
-
+import Control.Monad (replicateM_, unless)
 
 -- * LineMode specialization
 

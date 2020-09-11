@@ -1,6 +1,5 @@
 module Parse.Parser.Attoparsec where
 
-import qualified Data.ByteString as B
 import           Data.ByteString      (ByteString)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Attoparsec.ByteString.Char8 as A (stringCI)
@@ -44,8 +43,3 @@ takeWhile = A.takeWhile
 word8 :: Word8 -> Parser Word8
 word8 = A.word8
 {-# INLINE word8 #-}
-
-{-
-A.satisfy
-A.skip
--}

@@ -115,6 +115,8 @@ _char ~(w,t) q
             _    -> fail
         _    -> fail
 
+-- XXX: does _qquad deserve own bindings or should it capture h,l from scope ?
+
 -- | @Matcher@ that accepts all valid representations of UTF-16 surrogate pairs
 _surr :: DeconBS -> QuadPair -> Matcher
 _surr ~(w,t) (h,l)
@@ -126,7 +128,7 @@ _surr ~(w,t) (h,l)
         _    -> fail
     where
         _qquad :: Quad -> Quad -> P.Parser Res
-        _qquad h l = do { _quad h; P.word8 Bslash; P.word8 Hex_u; _quad l }
+        _qquad hi lo = _quad hi >> P.word8 Bslash >> P.word8 Hex_u >> _quad lo
         {-# INLINE _qquad #-}
 
 -- | parseMatch : attempt to match against pre-classified query key,

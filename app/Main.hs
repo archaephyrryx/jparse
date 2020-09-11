@@ -4,16 +4,16 @@
 module Main (main) where
 
 import qualified Conduit as C (stdinC)
-import qualified System.Environment as Sys
 import qualified Data.Attoparsec.ByteString as A (parse)
 
 import Parse (mapClass, ParseClass)
-import JParse (seekInObj', seekInObjZepto, runParse, putLnBuilderC)
+import JParse (seekInObj', seekInObjZepto, runParse)
 import Driver (streamZepto, streamZeptoHttp)
 import Options (getOptions, Mode(..), Options(..))
 
 import Options.Applicative
 
+opts :: ParserInfo Options
 opts =
   info (getOptions <**> helper)
        ( fullDesc

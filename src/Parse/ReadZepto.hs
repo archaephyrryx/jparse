@@ -6,14 +6,11 @@
 
 module Parse.ReadZepto where
 
-import           Control.Applicative ((<|>))
-import           Control.Monad (mzero, void, when)
-import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8)
+import           Control.Monad (mzero)
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
-import qualified Data.ByteString.Char8 as S8
 import           Data.Word (Word8)
 
 import           Parse.Symbol hiding (token, symbol)
@@ -21,7 +18,7 @@ import           Parse.Read.Internal
 
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z
-import           Parse.Parser (token, symbol)
+import           Parse.Parser (symbol)
 
 -- * String-centric parsers
 
@@ -68,6 +65,8 @@ old_skipToEndQ = skipQUnit >> Z.skipSpace
     {-# INLINE skipQUnit #-}
 {-# INLINE old_skipToEndQ #-}
 
+
+-- XXX: SHOULD HANDLE BACKSLASH HERE OR IN CALLER
 -- | basic parser that interprets escaped characters (except backslash)
 parseEscaped :: Z.Parser Builder
 parseEscaped =
@@ -76,6 +75,7 @@ parseEscaped =
     Hex_u -> do
       q <- parseHex
       pure $ D.word8 Hex_u <> D.byteString q
+    _ -> mzero
 {-# INLINE parseEscaped #-}
 
 -- | parses uXXXX hexcodes (without initial u)
@@ -95,13 +95,13 @@ skipValue :: Z.Parser ()
 skipValue =
     Z.pop >>= \case
         Quote -> skipToEndQ       -- leading '"' implies string
-        Minus -> skipNumber True  -- numbers that begin in '-' must have at least one digit
+        Minus -> skipNumber       -- numbers that begin in '-' must have at least one digit
         LBracket -> skipArray
         LBrace -> skipObject
         Lit_n -> _null  *> Z.skipSpace
         Lit_t -> _true  *> Z.skipSpace
         Lit_f -> _false *> Z.skipSpace
-        w | isDigit w -> skipNumber False
+        w | isDigit w -> skipNumber
         _  -> mzero
     where
         -- character sequence required for JSON literals (null, true, false)
@@ -135,8 +135,8 @@ skipArray = do
 
 -- | skipNumber : numbers contain no special characters and can be skipped
 --   efficiently without validation.
-skipNumber :: Bool -> Z.Parser ()
-skipNumber wantDigit = Z.skipWhile nonTerminal >> Z.skipSpace
+skipNumber :: Z.Parser ()
+skipNumber = Z.skipWhile nonTerminal >> Z.skipSpace
   where
     nonTerminal :: Word8 -> Bool
     nonTerminal Comma = False

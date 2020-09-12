@@ -7,7 +7,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Driver where
+module JParse.Driver where
 
 import Prelude hiding (getLine)
 
@@ -20,10 +20,10 @@ import qualified Data.ByteString.Builder as D
 
 import qualified Parse.Parser.Zepto as Z
 
-import Helper
+import JParse.Helper
 
-import Driver.Internal
-import Driver.Distributor
+import JParse.Driver.Internal
+import JParse.Driver.Distributor
 
 -- Concurrency mode
 import Control.Concurrent.Async

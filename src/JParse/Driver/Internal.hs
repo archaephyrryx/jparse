@@ -5,7 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Driver.Internal where
+module JParse.Driver.Internal where
 
 import Control.Monad.IO.Class (MonadIO(..))
 
@@ -23,7 +23,7 @@ import Streaming
 import qualified Streaming.Prelude as S
 import Streaming.Internal (Stream(..))
 
-import Global
+import JParse.Global
 
 -- Concurrency mode
 import Control.Concurrent

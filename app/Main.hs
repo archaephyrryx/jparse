@@ -8,7 +8,7 @@ import qualified Data.Attoparsec.ByteString as A (parse)
 
 import Parse (mapClass, ParseClass)
 import JParse (seekInObj', seekInObjZepto, runParse)
-import Driver (streamZepto, streamZeptoHttp)
+import JParse.Driver (streamZepto, streamZeptoHttp)
 import Options (getOptions, Mode(..), Options(..))
 
 import Options.Applicative

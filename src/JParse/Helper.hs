@@ -1,4 +1,4 @@
-module Helper
+module JParse.Helper
   ( if_
   , fi
   , cond

@@ -1,4 +1,4 @@
-module Driver.Distributor where
+module JParse.Driver.Distributor where
 
 import Control.Concurrent.Async
 
@@ -10,10 +10,10 @@ import qualified Data.ByteString.Lazy as L
 
 import qualified Streaming.Zip as Zip
 
-import Driver.Internal
-import Global
+import JParse.Driver.Internal
+import JParse.Global
 
-import Streams
+import JParse.Streams
 
 -- | helper to suppress unused-do-binding warnings
 vsync :: IO a -> IO ()

@@ -1,4 +1,4 @@
-module Global where
+module JParse.Global where
 
 import Control.Concurrent (getNumCapabilities)
 

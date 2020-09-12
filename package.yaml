@@ -21,14 +21,19 @@ description:         Please see the README on GitHub at <https://github.com/arch
 
 dependencies:
 - base >= 4.7 && < 5
+- async
 - attoparsec
 - bytestring
 - base16-bytestring
 - conduit
+- resourcet
+- stm
 - streaming
 - streaming-bytestring
+- streaming-utils
 - text
 - transformers
+- BoundedChan
 
 library:
   source-dirs: src
@@ -48,12 +53,7 @@ executables:
     - -O2
     dependencies:
     - jparse
-    - async
-    - BoundedChan
     - optparse-applicative
-    - resourcet
-    - stm
-    - streaming-utils
 
 tests:
   jparse-test:

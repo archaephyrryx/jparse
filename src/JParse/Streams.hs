@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
-module Streams where
+module JParse.Streams where
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming as BS
@@ -16,8 +16,8 @@ import qualified Streaming.Zip as Zip
 
 -- local module imports
 
-import Global
-import Helper
+import JParse.Global
+import JParse.Helper
 
 -- * Source creation
 

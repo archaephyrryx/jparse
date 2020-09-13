@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2288e081e699cadb8e9e385318c8d5d4150a30d5e4ca8838c320cd40f576e6e6
+-- hash: 18841b3d227851a58ceac8359d45cc10d647cef60f4d8c26d43a219660c38bd3
 
 name:           jparse
 version:        0.1.0.0
@@ -30,7 +30,9 @@ library
       Data.ByteString.Seek
       JParse
       JParse.Attoparsec
+      JParse.Attoparsec.Common
       JParse.Attoparsec.Conduit
+      JParse.Attoparsec.Streaming
       JParse.Driver
       JParse.Driver.Distributor
       JParse.Driver.Internal

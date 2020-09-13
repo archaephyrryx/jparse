@@ -4,10 +4,11 @@
 module Main (main) where
 
 import qualified Conduit as C (stdinC)
+import qualified Data.ByteString.Streaming.Char8 as BS8 (stdin)
 import qualified Data.Attoparsec.ByteString as A (parse)
 
 import Parse (mapClass, ParseClass)
-import JParse (seekInObj', seekInObjZepto, runParse)
+import JParse (seekInObj', seekInObjZepto, runParsec, runParses)
 import JParse.Driver (streamZepto, streamZeptoHttp)
 import Options (getOptions, Mode(..), Options(..))
 
@@ -25,13 +26,18 @@ main = do
   Options{..} <- execParser opts
   let ckey = mapClass $! query
   case mode of
-    BlockMode -> blockParse ckey
+    BlockMode -> blockParse' ckey
     LineMode -> lineParse ckey http zipped gated
 
 blockParse :: [ParseClass] -> IO ()
 blockParse !ckey = do
   let parser = A.parse (seekInObj' ckey)
-  runParse parser C.stdinC
+  runParsec parser C.stdinC
+
+blockParse' :: [ParseClass] -> IO ()
+blockParse' !ckey = do
+  let parser = A.parse (seekInObj' ckey)
+  runParses parser BS8.stdin
 
 lineParse :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
 lineParse !ckey Nothing = streamZepto (seekInObjZepto ckey)

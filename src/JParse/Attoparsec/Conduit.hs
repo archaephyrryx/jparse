@@ -20,28 +20,19 @@ import           System.IO (stdout)
 
 import Data.Void (Void)
 
--- | print a Builder to stdout with a trailing newline
-putLnBuilder :: MonadIO m => Maybe Builder -> m ()
-putLnBuilder Nothing = pure ()
-putLnBuilder (Just b) = liftIO $ D.hPutBuilder stdout (b <> D.word8 0xa)
-{-# INLINE putLnBuilder #-}
+import JParse.Attoparsec.Common
 
 putLnBuilderC :: MonadIO m => C.ConduitT (Maybe Builder) Void m ()
 putLnBuilderC = C.mapM_C putLnBuilder
 {-# INLINE putLnBuilderC #-}
 
--- | Strip leading whitespace from a ByteString
-trim :: ByteString -> ByteString
-trim !bs = B.dropWhile A.isSpace_w8 bs
-{-# INLINE trim #-}
-
 -- | Run 'parseC' using a given parser over arbitrary upstream
 -- and output the results using 'putLnBuilderC'
-runParse :: (ByteString -> A.Result (Maybe Builder))
+runParsec :: (ByteString -> A.Result (Maybe Builder))
           -> C.ConduitT () ByteString IO ()
           -> IO ()
-runParse = runParseWithC putLnBuilderC
-{-# INLINE runParse #-}
+runParsec = runParseWithC putLnBuilderC
+{-# INLINE runParsec #-}
 
 -- | Run 'parseC' using a given parser over arbitrary upstream
 -- and output the results using arbitrary function
@@ -52,7 +43,7 @@ runParseWithC :: (MonadIO m, MonadFail m)
               -> m a
 runParseWithC mc parser source = C.runConduit $ source .| runParseC .| mc
   where
-    {-# INLINE runParseC #-}
+    {-# INLINABLE runParseC #-}
     runParseC = C.await >>= \case
       Just bs ->
         let bs' = trim bs

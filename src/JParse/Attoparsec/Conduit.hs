@@ -22,7 +22,7 @@ import Data.Void (Void)
 
 import JParse.Attoparsec.Common
 
-putLnBuilderC :: MonadIO m => C.ConduitT (Maybe Builder) Void m ()
+putLnBuilderC :: MonadIO m => C.ConduitT Builder Void m ()
 putLnBuilderC = C.mapM_C putLnBuilder
 {-# INLINE putLnBuilderC #-}
 
@@ -37,7 +37,7 @@ runParsec = runParseWithC putLnBuilderC
 -- | Run 'parseC' using a given parser over arbitrary upstream
 -- and output the results using arbitrary function
 runParseWithC :: (MonadIO m, MonadFail m)
-              => C.ConduitT (Maybe Builder) Void m a -- ^ sink on Maybe Builder values
+              => C.ConduitT Builder Void m a -- ^ sink on Maybe Builder values
               -> (ByteString -> A.Result (Maybe Builder)) -- ^ parse function
               -> C.ConduitT () ByteString m () -- ^ input conduit
               -> m a
@@ -68,12 +68,12 @@ parseC :: (MonadIO m, MonadFail m)
        -> Bool -- ^ is the parse-state clean (not mid-parse)
        -> (ByteString -> A.Result (Maybe Builder)) -- ^ primary parser
        -> A.Result (Maybe Builder) -- ^ most recent parse result
-       -> C.ConduitT ByteString (Maybe Builder) m ()
+       -> C.ConduitT ByteString Builder m ()
 parseC atEnd clean parser res =
   case res of
     A.Done leftover result -> do
       let clean' = not atEnd -- we are mid-parse if upstream is exhausted
-      C.yield result
+      doJust C.yield result
       if | more <- trim leftover
          , not $ B.null more -> parseC atEnd clean' parser $! parser more -- recurse on non-empty leftover bytestring
          | atEnd -> pure () -- upstream fully consumed and no leftover input

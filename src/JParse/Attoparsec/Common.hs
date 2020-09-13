@@ -9,6 +9,7 @@
 module JParse.Attoparsec.Common
   ( putLnBuilder
   , trim
+  , doJust
   ) where
 
 import           Control.Monad.IO.Class (MonadIO(..))
@@ -20,12 +21,16 @@ import           Data.ByteString.Builder (Builder)
 import           System.IO (stdout)
 
 -- | print a Builder to stdout with a trailing newline
-putLnBuilder :: MonadIO m => Maybe Builder -> m ()
-putLnBuilder Nothing = pure ()
-putLnBuilder (Just b) = liftIO $ D.hPutBuilder stdout (b <> D.word8 0xa)
+putLnBuilder :: MonadIO m => Builder -> m ()
+putLnBuilder b = liftIO $ D.hPutBuilder stdout (b <> D.word8 0xa)
 {-# INLINE putLnBuilder #-}
 
 -- | Strip leading whitespace from a ByteString
 trim :: ByteString -> ByteString
 trim !bs = B.dropWhile A.isSpace_w8 bs
 {-# INLINE trim #-}
+
+doJust :: Monad m => (a -> m ()) -> Maybe a -> m ()
+doJust f (Just x) = f x
+doJust _ _ = return ()
+{-# INLINE doJust #-}

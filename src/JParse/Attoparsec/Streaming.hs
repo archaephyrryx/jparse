@@ -32,29 +32,15 @@ import           System.IO (stdout)
 import Data.Void (Void)
 
 import JParse.Attoparsec.Common
+import JParse.Helper (cond)
 
-
-putLnBuilderS :: MonadIO m => Stream (Of (Maybe Builder)) m () -> m ()
-putLnBuilderS = S.mapM_ putLnBuilder
-{-# INLINE putLnBuilderS #-}
-
--- | Run 'parseC' using a given parser over arbitrary upstream
--- and output the results using 'putLnBuilderC'
-runParses :: (MonadIO m, MonadFail m)
-          => (B.ByteString -> A.Result (Maybe Builder))
-          -> BS.ByteString m ()
-          -> m ()
-runParses = runParseWithS putLnBuilderS
-{-# INLINE runParses #-}
-
--- | Run 'parseC' using a given parser over arbitrary upstream
--- and output the results using arbitrary function
-runParseWithS :: (MonadIO m, MonadFail m)
-              => (Stream (Of (Maybe Builder)) m () -> m ()) -- ^ sink on Maybe Builder values
-              -> (B.ByteString -> A.Result (Maybe Builder)) -- ^ parse function
-              -> BS.ByteString m () -- ^ input conduit
-              -> m ()
-runParseWithS act parser src = act $ runParseS $ src
+-- | Run 'parseS' using a given parser over arbitrary upstream
+-- and return stream of unwrapped @Just@ results
+blockParseStream :: (MonadIO m, MonadFail m)
+                 => (B.ByteString -> A.Result (Maybe a)) -- ^ parse function
+                 -> BS.ByteString m () -- ^ input monadic bytestring
+                 -> Stream (Of a) m () -- ^ Stream of unwrapped @Just@ values
+blockParseStream parser src = runParseS $ src
   where
     {-# INLINABLE runParseS #-}
     runParseS mbs = do
@@ -64,46 +50,45 @@ runParseWithS act parser src = act $ runParseS $ src
           if B.null bs'
             then runParseS rest
             else do
-              lift (BS.unconsChunk rest) >>= \src -> parseS src False parser (parser bs')
+              src <- lift (BS.unconsChunk rest)
+              parseS src parser bs'
         _       -> pure ()
-{-# INLINE runParseWithS #-}
+{-# INLINE blockParseStream #-}
 
--- | Conduit that feeds upstream ByteStrings into a Parser and yields Maybe Builders from successful parses
+-- | Extract strict ByteStrings from a monadic ByteString source
+-- and feed them into a into a Parser, yielding results of type @Maybe Builder@
+-- from successful parses
 --
---   Recurses until end of output is reached and retrieves additonal ByteString
---   output from upstream each pass, until parser yields Done or Fail result.
+-- Recurses until end of pure input is reached and retrieves additonal ByteString
+-- chunks from the source each pass, until parser yields Done or Fail result.
 --
---   Designed around 'seekInObj', which has the property that as soon as a positive or
---   negative result has been decided for each JSON object encountered, the remainder of
---   that JSON object is skipped.
-
+-- Designed around 'seekInObj', which has the property that as soon as a positive or
+-- negative result has been decided for each JSON object encountered, the remainder of
+-- that JSON object is skipped.
 parseS :: (MonadIO m, MonadFail m)
        => Maybe (B.ByteString, BS.ByteString m ()) -- ^ unconsChunk of source monadic bytestring
-       -> Bool -- ^ have we already passed empty to a continuation
-       -> (B.ByteString -> A.Result (Maybe Builder)) -- ^ parser
-       -> A.Result (Maybe Builder) -- ^ most recent result
-       -> Stream (Of (Maybe Builder)) m () -- ^ output stream of parsed results
-parseS src fed parser res =
-  case res of
-    A.Done leftover result -> do
-      S.yield result
-      let more = trim leftover
-      if not $ B.null more 
-        then parseS src False parser $! parser more
-        else case src of
-          Nothing           -> pure ()
+       -> (B.ByteString -> A.Result (Maybe a)) -- ^ parser
+       -> B.ByteString -- ^ initial chunk
+       -> Stream (Of a) m () -- ^ output stream of parsed results
+parseS src parser !bs = loop src $ parser bs
+  where
+    loop src res = case res of
+      A.Done leftover result -> do
+        doJust S.yield result
+        let more = trim leftover
+        if not $ B.null more 
+          then loop src $! parser more
+          else case src of
+            Nothing         -> pure ()
+            Just (bs, rest) -> do
+              let bs' = trim bs
+              src' <- lift $ BS.unconsChunk rest
+              loop src' $! parser bs'
+      A.Partial cont ->
+        case src of
+          Nothing -> loop Nothing $! cont B.empty
           Just (bs, rest) -> do
-            let bs' = trim bs
             src' <- lift $ BS.unconsChunk rest
-            parseS src' False parser $! parser bs'
-    A.Partial cont ->
-      case src of
-        Nothing | fed       -> pure ()
-                | otherwise -> parseS Nothing True parser $! cont B.empty
-        Just (bs, rest)     -> do
-          let more = trim bs
-          src' <- lift $ BS.unconsChunk rest
-          if not $ B.null more
-            then parseS src' False parser $! cont more
-            else parseS src' False parser $! res
-    A.Fail i ctx e -> fail $ show (i, ctx, e)
+            loop src' $ cond B.null (const res) cont $! trim bs
+      A.Fail i ctx e -> fail $ show (i, ctx, e)
+{-# INLINE parseS #-}

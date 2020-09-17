@@ -44,10 +44,8 @@ import Parse
 
 import qualified Parse.ReadAlt as Alt
 import qualified Parse.ReadZepto as Zep
-import qualified Parse.ReadStream as ZepS
 
 import qualified Parse.Parser.Zepto as Z
-import qualified Parse.Parser.ZeptoStream as ZS
 
 
 main :: IO ()
@@ -79,7 +77,6 @@ main = do
         [ bench "Base"    $ whnf (run parseToEndQ build)     bstring
         , bench "Alt" $ whnf (run Alt.parseToEndQ build) bstring
         , bench "Zepto" $ whnf (run' Zep.parseToEndQ build) bstring
-        , bench "ZeptoS" $ whnf (runZ ZepS.parseToEndQ build) bstring
         ] -}
     , bgroup "skipToEndQ simple" $
         [ bench "Base"    $ whnf (run skipToEndQ id) bstring'
@@ -92,18 +89,15 @@ main = do
         [ bench "Base"    $ whnf (run parseToEndQ build)     bstring'
         , bench "Alt" $ whnf (run Alt.parseToEndQ build) bstring'
         , bench "Zepto" $ whnf (run' Zep.parseToEndQ build) bstring'
-        , bench "ZeptoS" $ whnf (runZ ZepS.parseToEndQ build) bstring'
         ]
     , bgroup "seekInObj" $
         [ bench "Base"    $ whnf (run (keyToParser "foo") $ build.fromJust) fooson
         , bench "Alt" $ whnf (run (keyToParser' "foo") $ build.fromJust) fooson
         , bench "Zepto" $ whnf (run' (keyToZepto "foo") $ build.fromJust) fooson
-        , bench "ZeptoS" $ whnf (runZ (keyToStream "foo") $ build.fromJust) fooson
         ]
       bgroup "Zepto Parse Lines" $
         [ bench "Zepto Conduit" $ nfIO (conduitAct "foo")
         , bench "Zepto Streaming" $ nfIO (streamActZ "foo")
-        , bench "ZeptoStream" $ nfIO (streamAct "foo")
         ]
         -}
     ]
@@ -143,14 +137,6 @@ streamParse z bs = do
   return $ (val :> res)
 
 
-
-parseStream :: MonadIO m => ZS.ZeptoT m (Maybe Builder) -> BS8.ByteString m r -> m (Of (Either String (Maybe Builder)) r)
-parseStream z bs = do
-  let bs' = void bs
-  val <- ZS.parseT z bs'
-  res <- BS.effects bs
-  return $ (val :> res)
-
 streamlines :: C.MonadResource m => String -> S.Stream (BS8.ByteString m) m ()
 streamlines = BS8.lines . BS.readFile
 -}
@@ -164,9 +150,6 @@ run p f b = complete f $ A.parse p b
 run' :: Z.Parser a -> (a -> b) -> ByteString -> b
 run' p f b = (\(Right x) -> f x) $ Z.parse p b
 
-runZ :: ZS.Parser a -> (a -> b) -> ByteString -> b
-runZ p f b = (\(Right x) -> f x) $ ZS.parse p b
-
 bstring :: ByteString
 bstring = "this is an exceptionally long string with escapes such as \\b, \\t, \\\\, and even \\u2f3F-like quads\"   "
 
@@ -175,21 +158,6 @@ bstring' = "this is an exceptionally long string with a single quad and no other
 
 fooson :: ByteString
 fooson = "{ \"ignore\" : -123 , \"everything\":null, \"until\":[\"you\",\"see\"] , \"the\":{ \"key\":\"foo\" }, \"foo\":\"<- here it is!\" }"
-
-countParse :: String -> String -> IO Int
-countParse str inp =
-  let parser = keyToParser str
-   in C.runResourceT $ runParseWithC (C.lengthIfC isJust) (A.parse parser) (C.sourceFile inp)
-
-countParse' :: String -> String -> IO Int
-countParse' str inp =
-  let parser = keyToParser' str
-   in C.runResourceT $ runParseWithC (C.lengthIfC isJust) (A.parse parser) (C.sourceFile inp)
-
-countZepto :: String -> String -> IO Int
-countZepto str inp =
-  let parser = keyToZepto str
-   in C.runResourceT $ runZeptoWithC (C.lengthIfC isJust) (Z.parseR parser) (C.sourceFile inp)
 
 
 _count = 100000
@@ -262,8 +230,3 @@ keyToZepto str =
   let key = qkey str
       ckey = mapClass key
    in seekInObjZepto ckey
-
-keyToStream str =
-  let key = qkey str
-      ckey = mapClass key
-   in seekInObjZeptoStream ckey

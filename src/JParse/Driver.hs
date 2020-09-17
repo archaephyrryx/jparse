@@ -9,8 +9,6 @@
 
 module JParse.Driver where
 
-import Prelude hiding (getLine)
-
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import Data.ByteString (ByteString)
@@ -18,9 +16,12 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
 
+import Data.ByteString.Split (unconsLine)
+
 import qualified Parse.Parser.Zepto as Z
 
 import JParse.Helper
+import JParse.Channels
 
 import JParse.Driver.Internal
 import JParse.Driver.Distributor
@@ -30,6 +31,8 @@ import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Monad (replicateM_, unless)
 
+
+import Data.ByteString.Build (buildLong)
 -- * LineMode specialization
 
 
@@ -101,8 +104,8 @@ labor :: ChanBounded (Maybe ByteString)
       -> L.ByteString
       -> IO ()
 labor output z lbs = do
-  let bld = refold getLine (accZepto z) (mempty :: Builder) lbs
-      !bs = build bld
+  let bld = refold unconsLine (accZepto z) (mempty :: Builder) lbs
+      !bs = buildLong bld
   writeChanBounded output (Just bs)
 
 accZepto :: Z.Parser (Maybe Builder)

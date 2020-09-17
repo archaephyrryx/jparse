@@ -9,7 +9,6 @@
 module JParse.Attoparsec.Common
   ( putLnBuilder
   , trim
-  , doJust
   ) where
 
 import           Control.Monad.IO.Class (MonadIO(..))
@@ -29,8 +28,3 @@ putLnBuilder b = liftIO $ D.hPutBuilder stdout (b <> D.word8 0xa)
 trim :: ByteString -> ByteString
 trim !bs = B.dropWhile A.isSpace_w8 bs
 {-# INLINE trim #-}
-
-doJust :: Monad m => (a -> m ()) -> Maybe a -> m ()
-doJust f (Just x) = f x
-doJust _ _ = return ()
-{-# INLINE doJust #-}

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 18841b3d227851a58ceac8359d45cc10d647cef60f4d8c26d43a219660c38bd3
+-- hash: 320c91d61e13b987ece28127d5f184265d961aa00da8ab57f58119d3147e89c3
 
 name:           jparse
 version:        0.1.0.0
@@ -27,12 +27,16 @@ source-repository head
 
 library
   exposed-modules:
+      Data.ByteString.Build
       Data.ByteString.Seek
+      Data.ByteString.Split
+      Data.Nullable
       JParse
       JParse.Attoparsec
       JParse.Attoparsec.Common
       JParse.Attoparsec.Conduit
       JParse.Attoparsec.Streaming
+      JParse.Channels
       JParse.Driver
       JParse.Driver.Distributor
       JParse.Driver.Internal
@@ -40,6 +44,8 @@ library
       JParse.Helper
       JParse.Internal
       JParse.Streams
+      JParse.Zepto
+      JParse.Zepto.Internal
       Parse
       Parse.Match
       Parse.Match.Internal
@@ -56,7 +62,7 @@ library
       Paths_jparse
   hs-source-dirs:
       src
-  ghc-options: -O2
+  ghc-options: -O2 -fprof-auto -fprof-cafs
   include-dirs:
       cbits
   build-depends:
@@ -79,7 +85,9 @@ library
 executable jparse-exe
   main-is: Main.hs
   other-modules:
+      Gates
       Options
+      Sources
       Paths_jparse
   hs-source-dirs:
       app
@@ -93,6 +101,7 @@ executable jparse-exe
     , bytestring
     , conduit
     , jparse
+    , mmorph
     , optparse-applicative
     , resourcet
     , stm

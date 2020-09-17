@@ -14,6 +14,7 @@ import JParse.Driver.Internal
 import JParse.Global
 
 import JParse.Streams
+import JParse.Channels
 
 -- | helper to suppress unused-do-binding warnings
 vsync :: IO a -> IO ()

@@ -21,6 +21,7 @@ import           System.IO (stdout)
 import Data.Void (Void)
 
 import JParse.Attoparsec.Common
+import JParse.Helper (doJust)
 
 putLnBuilderC :: MonadIO m => C.ConduitT Builder Void m ()
 putLnBuilderC = C.mapM_C putLnBuilder

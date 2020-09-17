@@ -32,7 +32,7 @@ import           System.IO (stdout)
 import Data.Void (Void)
 
 import JParse.Attoparsec.Common
-import JParse.Helper (cond)
+import JParse.Helper (cond, doJust)
 
 -- | Run 'parseS' using a given parser over arbitrary upstream
 -- and return stream of unwrapped @Just@ results

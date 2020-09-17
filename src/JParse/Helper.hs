@@ -4,8 +4,10 @@ module JParse.Helper
   , cond
   , elseId
   , refold
+  , doJust
   ) where
 
+import Control.Monad (void)
 
 if_ :: Bool -> a -> a -> a
 if_ p x y = if p then x else y
@@ -31,3 +33,9 @@ refold g f z = go
       Nothing -> z
       Just (a, x') -> f a $ go x'
 {-# INLINE refold #-}
+
+doJust :: Monad m => (a -> m b) -> Maybe a -> m ()
+doJust f (Just x) = void $ f x
+doJust _ _ = return ()
+{-# INLINE doJust #-}
+{-# SPECIALIZE INLINE doJust :: Monad m => (a -> m ()) -> Maybe a -> m () #-}

@@ -18,13 +18,12 @@ foreign import capi unsafe "static seek.h seek_quote" c_seek_quote
     :: Ptr Word8 -> CSize ->  IO (Ptr Word8)
 
 skipString :: ByteString -> Maybe ByteString
-skipString (PS fp o l) = accursedUnutterablePerformIO $ withForeignPtr fp $
-    \p -> go p o
+skipString (PS fp !o l) = accursedUnutterablePerformIO $ withForeignPtr fp go
   where
-    go !ptr !ix = do
-        q <- c_seek_quote (ptr`plusPtr`ix) (fromIntegral (l - ix))
+    go !ptr = do
+        q <- c_seek_quote (ptr`plusPtr`o) $ fromIntegral l
         if q == nullPtr
             then return $ Nothing
             else let !j = (q`minusPtr`ptr) + 1
-                     !l' = l - j
+                     !l' = l + o - j
             in return $ Just $ PS fp j l'

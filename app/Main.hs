@@ -24,7 +24,7 @@ import Options.Applicative
 import Sources (getHttp, getStdin, condUnzip, unzip)
 import Gates (produce, generate)
 
-import Data.ByteString.Build (buildNano)
+import Data.ByteString.Build
 
 opts :: ParserInfo Options
 opts =
@@ -57,11 +57,15 @@ lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
 
 
 lineParse' :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
-lineParse' !ckey mUrl isZipped isGated =
-  let mbs = produce $ generate isGated isZipped mUrl
-      str = lineParseStream (fmap buildNano <$> seekInObjZepto ckey) mbs
-      -- str = lineParseFold (seekInObjZepto ckey) concatLine mempty id mbs
-   in S.mapM_ putStrLns str-- (D.hPutBuilder stdout) str
+lineParse' !ckey mUrl isZipped isGated = strat1
+  where
+    mbs = produce $ generate isGated isZipped mUrl
+    strat1 =
+      let str = lineParseStream (fmap buildShort <$> seekInObjZepto ckey) mbs
+       in S.mapM_ putStrLns str
+    strat2 =
+      let str = lineParseFold (seekInObjZepto ckey) concatLine mempty id mbs
+       in S.mapM_ (D.hPutBuilder stdout) str
 
 concatLine :: D.Builder -> D.Builder -> D.Builder
 concatLine bld rest = bld <> D.word8 0xa <> rest

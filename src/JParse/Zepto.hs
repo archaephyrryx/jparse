@@ -40,8 +40,7 @@ import qualified Data.Nullable as N
 
 
 -- | Parses a monadic bytestring that is already pre-processed to raw JSON format
-lineParseStream :: Eq a
-                => Z.Parser (Maybe a)
+lineParseStream :: Z.Parser (Maybe a)
                 -> BS.ByteString IO ()
                 -> Stream (Of [a]) IO ()
 lineParseStream parser mbs = parseLines parser $ lazyLineSplit mbs
@@ -56,8 +55,7 @@ lineParseFold :: Z.Parser (Maybe a)
 lineParseFold parser f z g mbs = parseLinesFold parser f z g $ lazyLineSplit mbs
 {-# INLINE lineParseFold #-}
 
-parseLines :: Eq a 
-           => Z.Parser (Maybe a)
+parseLines :: Z.Parser (Maybe a)
            -> Stream (Of L.ByteString) IO ()
            -> Stream (Of [a]) IO ()
 parseLines z str = do

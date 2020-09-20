@@ -3,6 +3,8 @@
 
 module JParse.Channels where
 
+import Prelude hiding (null)
+
 import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString as B
@@ -16,9 +18,10 @@ import Streaming.Internal (Stream(..))
 
 import Control.Concurrent
 import Control.Concurrent.Chan
-
 import qualified Control.Concurrent.BoundedChan as BC
 import Control.Concurrent.BoundedChan (BoundedChan, newBoundedChan)
+
+import Data.Nullable
 
 -- | Type alias to preserve abstract implementation
 type ChanBounded a = BoundedChan a
@@ -39,54 +42,54 @@ readChanBounded = BC.readChan
 {-# INLINE readChanBounded #-}
 
 
--- | Feed values from a 'Stream' into a 'Chan', writing 'mempty' once the stream is exhausted
+-- | Feed values from a 'Stream' into a 'Chan', writing 'null' once the stream is exhausted
 --
--- Note that it is impossible to distinguish between a literal 'mempty' value occuring in the
--- stream and the 'mempty' used as an end-of-stream marker; if 'mempty' writes are unavoidable
+-- Note that it is impossible to distinguish between a literal 'null' value occuring in the
+-- stream and the 'null' used as an end-of-stream marker; if 'null' writes are unavoidable
 -- or otherwise desirable, use 'feedChanMaybe' instead.
-feedChan :: (MonadIO m, Monoid a) => Chan a -> Stream (Of a) m r -> m ()
+feedChan :: (MonadIO m, Nullable a) => Chan a -> Stream (Of a) m r -> m ()
 feedChan chan = go
   where
     go stream =
       S.uncons stream >>= \case
         Just (x, rest) -> liftIO (writeChan chan x) >> go rest
-        Nothing -> liftIO (writeChan chan mempty)
+        Nothing -> liftIO $ writeChan chan null
 {-# INLINE feedChan #-}
 
--- | Construct a 'Stream' consisting of values read from a 'Chan', terminating on 'mempty'
+-- | Construct a 'Stream' consisting of values read from a 'Chan', terminating on 'null'
 --
--- Note that it is impossible to distinguish between a literal 'mempty' value occuring in the
--- chan and the 'mempty' used as an end-of-input marker; if it is impossible to preclude 'mempty'
+-- Note that it is impossible to distinguish between a literal 'null' value occuring in the
+-- chan and the 'null' used as an end-of-input marker; if it is impossible to preclude 'null'
 -- occuring in the chan, use 'drainChanMaybe' instead.
-drainChan :: (MonadIO m, Monoid a, Eq a) => Chan a -> Stream (Of a) m ()
+drainChan :: (MonadIO m, Nullable a) => Chan a -> Stream (Of a) m ()
 drainChan chan = go
   where
     go = do
       x <- liftIO $ readChan chan
-      if x == mempty then Return () else Step (x :> go)
+      if isNull x then Return () else Step (x :> go)
 {-# INLINE drainChan #-}
 
 -- | 'feedChan' for 'ChanBounded'
 --
--- Use 'feedChanBoundedMaybe' if 'mempty' writes are unavoidable
-feedChanBounded :: (MonadIO m, Monoid a) => ChanBounded a -> Stream (Of a) m r -> m ()
+-- Use 'feedChanBoundedMaybe' if 'null' writes are unavoidable
+feedChanBounded :: (MonadIO m, Nullable a) => ChanBounded a -> Stream (Of a) m r -> m ()
 feedChanBounded cb = go
   where
     go stream =
       S.uncons stream >>= \case
         Just (x, rest) -> liftIO (writeChanBounded cb x) >> go rest
-        Nothing -> liftIO $ writeChanBounded cb mempty
+        Nothing -> liftIO $ writeChanBounded cb null
 {-# INLINE feedChanBounded #-}
 
 -- | 'drainChan' for 'ChanBounded'
 --
--- Use 'drainChanBoundedMaybe' if 'mempty' reads are possible
-drainChanBounded :: (MonadIO m, Monoid a, Eq a) => ChanBounded a -> Stream (Of a) m ()
+-- Use 'drainChanBoundedMaybe' if 'null' reads are possible
+drainChanBounded :: (MonadIO m, Nullable a) => ChanBounded a -> Stream (Of a) m ()
 drainChanBounded cb = go
   where
     go = do
       x <- liftIO $ readChanBounded cb
-      if x == mempty then Return () else Step (x :> go)
+      if isNull x then Return () else Step (x :> go)
 {-# INLINE drainChanBounded #-}
 
 

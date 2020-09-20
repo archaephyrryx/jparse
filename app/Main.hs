@@ -4,12 +4,14 @@
 module Main (main) where
 
 import qualified Conduit as C (stdinC)
-import qualified Streaming.Prelude as S
 
-import qualified Data.ByteString.Char8 as B8 (putStrLn)
-import qualified Data.ByteString as B
+import qualified Streaming.Prelude as S
 import qualified Data.ByteString.Streaming.Char8 as BS8 (stdin)
+
 import qualified Data.Attoparsec.ByteString as A (parse)
+
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Builder as D
 import System.IO (stdout)
 
@@ -57,20 +59,11 @@ lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
 
 
 lineParse' :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
-lineParse' !ckey mUrl isZipped isGated = strat1
-  where
-    mbs = produce $ generate isGated isZipped mUrl
-    strat1 =
-      let str = lineParseStream (fmap buildShort <$> seekInObjZepto ckey) mbs
-       in S.mapM_ putStrLns str
-    strat2 =
-      let str = lineParseFold (seekInObjZepto ckey) concatLine mempty id mbs
-       in S.mapM_ (D.hPutBuilder stdout) str
+lineParse' !ckey mUrl isZipped isGated = do
+  mbs <- produce $ generate isGated isZipped mUrl
+  let str = lineParseFold (seekInObjZepto ckey) concatLine mempty buildLong mbs
+  S.mapM_ B8.putStr str
 
 concatLine :: D.Builder -> D.Builder -> D.Builder
 concatLine bld rest = bld <> D.word8 0xa <> rest
 {-# INLINE concatLine #-}
-
-putStrLns :: [B.ByteString] -> IO ()
-putStrLns bs = D.hPutBuilder stdout $ mconcat $ map (\b -> D.byteString b <> D.word8 0xa) bs
--- mapM_ B8.putStrLn

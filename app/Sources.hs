@@ -20,18 +20,13 @@ getStdin = BS.stdin
 {-# INLINE getStdin #-}
 
 -- | Extract monadic bytestring from a url over http/https
-getHttp :: (MonadIO m, MonadResource m) => String -> BS.ByteString m ()
-getHttp url = rejoin $ do
+getHttp :: (MonadIO m, MonadResource m) => String -> m (BS.ByteString m ())
+getHttp url = do
   req <- liftIO $ H.parseRequest url
   man <- liftIO $ H.newManager H.tlsManagerSettings
-  H.http req man
+  resp <- H.http req man
+  return $ H.responseBody resp
 {-# INLINE getHttp #-}
-
-rejoin :: Monad m
-       => m (H.Response (BS.ByteString m ()))
-       ->                BS.ByteString m ()
-rejoin = BS.mwrap . fmap H.responseBody
-{-# INLINE rejoin #-}
 
 -- * Unzipping
 
@@ -41,6 +36,6 @@ unzip = Zip.gunzip
 {-# INLINE unzip #-}
 
 -- | Performs conditional decompression of a monadic bytestring (format argument second)
-condUnzip :: MonadIO m => BS.ByteString m () ->  Bool ->  BS.ByteString m ()
-condUnzip mbs = fi (Zip.gunzip mbs) mbs
+condUnzip :: MonadIO m =>  Bool ->  BS.ByteString m () -> BS.ByteString m ()
+condUnzip b mbs = if_ b (Zip.gunzip mbs) mbs
 {-# INLINE condUnzip #-}

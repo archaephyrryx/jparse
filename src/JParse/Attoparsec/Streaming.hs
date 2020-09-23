@@ -13,9 +13,11 @@ import           Streaming
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
 import           Data.ByteString.Streaming.Internal (ByteString(..))
+import qualified Data.Attoparsec.ByteString.Streaming as AS
 
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Monad.Trans.Class (lift)
+import           Control.Monad (void)
 
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Attoparsec.ByteString.Char8 as A (isSpace_w8)
@@ -54,6 +56,10 @@ blockParseStream parser src = runParseS $ src
               parseS src parser bs'
         _       -> pure ()
 {-# INLINE blockParseStream #-}
+
+blockParsed :: Monad m => A.Parser (Maybe a) -> BS.ByteString m r -> Stream (Of a) m ()
+blockParsed parser src = void $ S.catMaybes $ AS.parsed parser src
+{-# INLINE blockParsed #-}
 
 -- | Extract strict ByteStrings from a monadic ByteString source
 -- and feed them into a into a Parser, yielding results of type @Maybe Builder@

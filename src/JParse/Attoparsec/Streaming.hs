@@ -9,6 +9,7 @@ module JParse.Attoparsec.Streaming where
 
 import qualified Streaming.Prelude as S
 import           Streaming
+import           Streaming.Internal (Stream(..))
 
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
@@ -57,9 +58,18 @@ blockParseStream parser src = runParseS $ src
         _       -> pure ()
 {-# INLINE blockParseStream #-}
 
-blockParsed :: Monad m => A.Parser (Maybe a) -> BS.ByteString m r -> Stream (Of a) m ()
-blockParsed parser src = void $ S.catMaybes $ AS.parsed parser src
+blockParsed :: A.Parser (Maybe a) -> BS.ByteString IO r -> Stream (Of a) IO ()
+blockParsed parser src = loop $ AS.parsed parser src
+  where
+    loop str = case str of
+      Return (Right _)   -> Return ()
+      Effect m           -> Effect (fmap loop m)
+      Step (ma :> snext) -> case ma of
+        Nothing -> loop snext
+        Just a  -> Step (a :> loop snext)
+      Return (Left (msg,_)) -> fail $ show msg
 {-# INLINE blockParsed #-}
+
 
 -- | Extract strict ByteStrings from a monadic ByteString source
 -- and feed them into a into a Parser, yielding results of type @Maybe Builder@

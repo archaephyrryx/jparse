@@ -3,9 +3,8 @@
 
 module Main (main) where
 
-import qualified Conduit as C (stdinC)
-
 import qualified Streaming.Prelude as S
+import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8 (stdin)
 
 import qualified Data.Attoparsec.ByteString as A (parse)
@@ -16,7 +15,7 @@ import qualified Data.ByteString.Builder as D
 import System.IO (stdout)
 
 import Parse (mapClass, ParseClass)
-import JParse (seekInObj', seekInObjZepto, runParsec, runParses)
+import JParse (seekInObj', seekInObjZepto, runParsec, runParses, runParsed)
 import JParse.Attoparsec (putLnBuilderS)
 import JParse.Driver (streamZepto, streamZeptoHttp)
 import JParse.Zepto (lineParseStream, lineParseFold )
@@ -24,7 +23,7 @@ import Options (getOptions, Mode(..), Options(..))
 
 import Options.Applicative
 import Sources (getHttp, getStdin, condUnzip, unzip)
-import Gates (produce, generate)
+import Gates
 
 import Data.ByteString.Build
 
@@ -39,30 +38,25 @@ main :: IO ()
 main = do
   Options{..} <- execParser opts
   let ckey = mapClass $! query
+  mbs <- generate gated zipped http
   case mode of
-    BlockMode -> blockParse' ckey
-    LineMode -> lineParse' ckey http zipped gated
+    LineMode  -> lineParse'  ckey mbs -- http zipped gated
+    BlockMode -> blockParse  ckey mbs
 
-blockParse :: [ParseClass] -> IO ()
-blockParse !ckey = do
-  let parser = A.parse (seekInObj' ckey)
-  runParsec parser C.stdinC
+blockParse :: [ParseClass] -> BS.ByteString IO () -> IO ()
+blockParse !ckey = runParses (A.parse (seekInObj' ckey))
 
-blockParse' :: [ParseClass] -> IO ()
-blockParse' !ckey = do
-  let parser = A.parse (seekInObj' ckey)
-  runParses parser BS8.stdin
+blockParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
+blockParse' !ckey = runParsed (seekInObj' ckey)
 
 lineParse :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
 lineParse !ckey Nothing     = streamZepto (seekInObjZepto ckey)
 lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
 
-
-lineParse' :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
-lineParse' !ckey mUrl isZipped isGated = do
-  mbs <- produce $ generate isGated isZipped mUrl
-  let str = lineParseFold (seekInObjZepto ckey) concatLine mempty buildLong mbs
-  S.mapM_ B8.putStr str
+lineParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
+lineParse' !ckey mbs =
+  S.mapM_ B8.putStr $
+    lineParseFold (seekInObjZepto ckey) concatLine mempty buildLong $ mbs
 
 concatLine :: D.Builder -> D.Builder -> D.Builder
 concatLine bld rest = bld <> D.word8 0xa <> rest

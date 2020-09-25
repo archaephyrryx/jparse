@@ -41,9 +41,8 @@ runParses parser src = putLnBuilderS $ blockParseStream parser src
 
 -- | Run 'blockParsed' using a given parser over arbitrary upstream
 -- and output the results using 'putLnBuilderS'
-runParsed :: (MonadIO m, MonadFail m)
-          => A.Parser (Maybe Builder)
-          -> BS.ByteString m ()
-          -> m ()
+runParsed :: A.Parser (Maybe Builder)
+          -> BS.ByteString IO ()
+          -> IO ()
 runParsed parser src = putLnBuilderS $ blockParsed parser src
 {-# INLINE runParsed #-}

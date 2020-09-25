@@ -25,7 +25,6 @@ dependencies:
 - attoparsec
 - bytestring
 - base16-bytestring
-- conduit
 - resourcet
 - stm
 - streaming

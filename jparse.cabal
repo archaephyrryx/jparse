@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e5d460fd84be6f9d02b65c4def5c39c35f244467baf851dac4cc74daf6123fbe
+-- hash: 4bd04acb6fc1b5fb91451bf30746b869cf7c1d2841cfb30854a702718b620282
 
 name:           jparse
 version:        0.1.0.0
@@ -34,7 +34,6 @@ library
       JParse
       JParse.Attoparsec
       JParse.Attoparsec.Common
-      JParse.Attoparsec.Conduit
       JParse.Attoparsec.Streaming
       JParse.Channels
       JParse.Driver
@@ -72,7 +71,6 @@ library
     , base >=4.7 && <5
     , base16-bytestring
     , bytestring
-    , conduit
     , resourcet
     , stm
     , streaming
@@ -99,7 +97,6 @@ executable jparse-exe
     , base >=4.7 && <5
     , base16-bytestring
     , bytestring
-    , conduit
     , jparse
     , optparse-applicative
     , resourcet
@@ -127,7 +124,6 @@ test-suite jparse-test
     , base >=4.7 && <5
     , base16-bytestring
     , bytestring
-    , conduit
     , gauge
     , jparse
     , resourcet

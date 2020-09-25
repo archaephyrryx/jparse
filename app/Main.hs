@@ -15,7 +15,7 @@ import qualified Data.ByteString.Builder as D
 import System.IO (stdout)
 
 import Parse (mapClass, ParseClass)
-import JParse (seekInObj', seekInObjZepto, runParsec, runParses, runParsed)
+import JParse (seekInObj', seekInObjZepto, runParses, runParsed)
 import JParse.Attoparsec (putLnBuilderS)
 import JParse.Driver (streamZepto, streamZeptoHttp)
 import JParse.Zepto (lineParseStream, lineParseFold )
@@ -44,7 +44,7 @@ main = do
     BlockMode -> blockParse  ckey mbs
 
 blockParse :: [ParseClass] -> BS.ByteString IO () -> IO ()
-blockParse !ckey = runParses (A.parse (seekInObj' ckey))
+blockParse !ckey = runParses (seekInObj' ckey)
 
 blockParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
 blockParse' !ckey = runParsed (seekInObj' ckey)

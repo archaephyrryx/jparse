@@ -6,14 +6,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module JParse.Attoparsec
-  ( module JParse.Attoparsec.Conduit
-  , module JParse.Attoparsec.Streaming
+  ( module JParse.Attoparsec.Streaming
   , putLnBuilderS
   , runParses
   , runParsed
   ) where
 
-import JParse.Attoparsec.Conduit
 import JParse.Attoparsec.Streaming
 import JParse.Attoparsec.Common
 
@@ -32,11 +30,10 @@ putLnBuilderS = S.mapM_ putLnBuilder
 
 -- | Run 'parseS' using a given parser over arbitrary upstream
 -- and output the results using 'putLnBuilderS'
-runParses :: (MonadIO m, MonadFail m)
-          => (B.ByteString -> A.Result (Maybe Builder))
-          -> BS.ByteString m ()
-          -> m ()
-runParses parser src = putLnBuilderS $ blockParseStream parser src
+runParses :: A.Parser (Maybe Builder)
+          -> BS.ByteString IO ()
+          -> IO ()
+runParses parser src = putLnBuilderS $ blockParseStream (A.parse parser) src
 {-# INLINE runParses #-}
 
 -- | Run 'blockParsed' using a given parser over arbitrary upstream

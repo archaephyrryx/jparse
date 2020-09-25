@@ -13,6 +13,7 @@ import Data.Semigroup ((<>))
 
 import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Resource (MonadResource(..), runResourceT)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as B
@@ -22,11 +23,6 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
 import qualified Data.ByteString.Builder.Extra as D
-
-import qualified Conduit as C
-import qualified Data.Conduit as C
-import qualified Data.Conduit.Combinators as C
-import Data.Conduit ((.|))
 
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
@@ -50,7 +46,6 @@ import qualified Parse.Parser.Zepto as Z
 
 main :: IO ()
 main = do
---  _hrun >> _lrun >> _mrun
   defaultMain $
     [ {- bgroup "parseObj" $
       [ bench "first"   $ nfIO $ countParse "foo" "heads.txt"
@@ -95,22 +90,13 @@ main = do
         , bench "Alt" $ whnf (run (keyToParser' "foo") $ build.fromJust) fooson
         , bench "Zepto" $ whnf (run' (keyToZepto "foo") $ build.fromJust) fooson
         ]
-      bgroup "Zepto Parse Lines" $
-        [ bench "Zepto Conduit" $ nfIO (conduitAct "foo")
-        , bench "Zepto Streaming" $ nfIO (streamActZ "foo")
-        ]
         -}
     ]
 
 {-
-conduitAct str = C.runResourceT $ C.runConduit $ C.sourceFile "heads.txt" .| C.linesUnboundedAscii .| zeptoC str .| C.mapC B.length .| C.sum
+streamActZ str = runResourceT $ S.sum_ $ procZepto $ buildZepto $ trimZepto $ streamZ str $ streamlines "heads.txt"
 
-zeptoC :: Monad m => String -> C.ConduitT ByteString ByteString m ()
-zeptoC str = C.mapC (run' (keyToZepto str) $ build.fromJust)
-
-streamActZ str = C.runResourceT $ S.sum_ $ procZepto $ buildZepto $ trimZepto $ streamZ str $ streamlines "heads.txt"
-
-streamAct str = C.runResourceT $ S.sum_ $ procZepto $ buildZepto $ trimZepto $ streamZepto str $ streamlines "heads.txt"
+streamAct str = runResourceT $ S.sum_ $ procZepto $ buildZepto $ trimZepto $ streamZepto str $ streamlines "heads.txt"
 
 procZepto :: MonadIO m => S.Stream (Of ByteString) m r -> S.Stream (Of Int) m r
 procZepto = S.map B.length
@@ -137,7 +123,7 @@ streamParse z bs = do
   return $ (val :> res)
 
 
-streamlines :: C.MonadResource m => String -> S.Stream (BS8.ByteString m) m ()
+streamlines :: MonadResource m => String -> S.Stream (BS8.ByteString m) m ()
 streamlines = BS8.lines . BS.readFile
 -}
 
@@ -162,18 +148,6 @@ fooson = "{ \"ignore\" : -123 , \"everything\":null, \"until\":[\"you\",\"see\"]
 
 _count = 100000
 _len = 10
-
-_hrun, _lrun, _mrun :: IO ()
-_hrun = C.runResourceT $ C.runConduit $ _hsource .| C.takeC _count .| C.unlinesAsciiC .| C.sinkFile "heads.txt"
-_lrun = C.runResourceT $ C.runConduit $ _lsource .| C.takeC _count .| C.unlinesAsciiC .| C.sinkFile "lasts.txt"
-_mrun = C.runResourceT $ C.runConduit $ _msource .| C.takeC _count .| C.unlinesAsciiC .| C.sinkFile "mids.txt"
-
-
-_hsource = C.repeatC $! _hed _len
-_lsource = C.repeatC $! _lst _len
-_msource = C.repeatC $! _mid _len
-
-
 
 _hed = (\n -> genObj "foo" 0 n)
 _lst = (\n -> genObj "foo" (n-1) n)

@@ -65,8 +65,8 @@ httpParse = option (Just <$> str) (long "http-url" <> short 'u' <> value Nothing
 -- * @LineMode@ for more efficient parsing of data where every line contains exactly one complete JSON object, and lines are trusted to be sufficiently short to permit reading entire lines into memory as a unit.
 --
 -- Various options and associated functionality of the executable (i.e. gzip decompression and reading data over HTTP) are only supported in LineMode
-data Mode = BlockMode -- ^ Attoparsec inside Conduit
-          | LineMode -- ^ Zepto inside Streaming
+data Mode = BlockMode -- ^ Attoparsec-based Streaming pipeline
+          | LineMode -- ^ Zepto-based Streaming pipeline
           deriving (Eq)
 
 defaultMode :: Mode

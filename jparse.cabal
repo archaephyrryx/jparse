@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 320c91d61e13b987ece28127d5f184265d961aa00da8ab57f58119d3147e89c3
+-- hash: e5d460fd84be6f9d02b65c4def5c39c35f244467baf851dac4cc74daf6123fbe
 
 name:           jparse
 version:        0.1.0.0
@@ -101,7 +101,6 @@ executable jparse-exe
     , bytestring
     , conduit
     , jparse
-    , mmorph
     , optparse-applicative
     , resourcet
     , stm

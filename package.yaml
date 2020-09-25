@@ -56,7 +56,6 @@ executables:
     dependencies:
     - jparse
     - optparse-applicative
-    - mmorph
 
 tests:
   jparse-test:

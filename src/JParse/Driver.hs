@@ -9,6 +9,8 @@
 
 module JParse.Driver where
 
+import qualified Data.ByteString.Streaming as BS
+
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import Data.ByteString (ByteString)
@@ -22,9 +24,9 @@ import qualified Parse.Parser.Zepto as Z
 
 import JParse.Helper
 import JParse.Channels
+import JParse.Streams (lazyLineSplit)
 
 import JParse.Driver.Internal
-import JParse.Driver.Distributor
 
 -- Concurrency mode
 import Control.Concurrent.Async
@@ -35,36 +37,10 @@ import Control.Monad (replicateM_, unless)
 import Data.ByteString.Build (buildLong)
 -- * LineMode specialization
 
-
-streamZepto :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
-streamZepto = zeptoMain
-
-streamZeptoHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
-streamZeptoHttp = zeptoMainHttp
-
-dist :: Bool -> ChanBounded L.ByteString -> Bool -> IO ()
-dist True = distributorGated
-dist False = distributor
-{-# INLINE dist #-}
-
-distHttp :: Bool -> ChanBounded L.ByteString -> String -> Bool -> IO ()
-distHttp True = distributorHttpGated
-distHttp False = distributorHttp
-{-# INLINE distHttp #-}
-
-zeptoMain :: Z.Parser (Maybe Builder) -> Bool -> Bool -> IO ()
-zeptoMain z isZipped isGated = do
+streamZepto :: Z.Parser (Maybe Builder) -> BS.ByteString IO () -> IO ()
+streamZepto z mbs = do
   ZEnv{..} <- newZEnv
-  dist isGated input isZipped
-  replicateM_ nworkers $ async $ worker input output nw z
-  done <- async $ collector output
-  monitor output nw
-  wait done
-
-zeptoMainHttp :: Z.Parser (Maybe Builder) -> String -> Bool -> Bool -> IO ()
-zeptoMainHttp z url isZipped isGated = do
-  ZEnv{..} <- newZEnv
-  distHttp isGated input url isZipped
+  async $ feedChanBounded input $ lazyLineSplit mbs
   replicateM_ nworkers $ async $ worker input output nw z
   done <- async $ collector output
   monitor output nw

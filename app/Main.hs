@@ -15,11 +15,11 @@ import qualified Data.ByteString.Builder as D
 import System.IO (stdout)
 
 import Parse (mapClass, ParseClass)
-import JParse (seekInObj', seekInObjZepto, runParses, runParsed)
-import JParse.Attoparsec (putLnBuilderS)
-import JParse.Driver (streamZepto, streamZeptoHttp)
-import JParse.Zepto (lineParseStream, lineParseFold )
-import Options (getOptions, Mode(..), Options(..))
+import JParse
+import JParse.Attoparsec
+import JParse.Driver
+import JParse.Zepto
+import Options
 
 import Options.Applicative
 import Sources (getHttp, getStdin, condUnzip, unzip)
@@ -37,10 +37,10 @@ opts =
 main :: IO ()
 main = do
   Options{..} <- execParser opts
-  let ckey = mapClass $! query
+  let !ckey = mapClass $! query
   mbs <- generate gated zipped http
   case mode of
-    LineMode  -> lineParse'  ckey mbs -- http zipped gated
+    LineMode  -> lineParse' ckey mbs
     BlockMode -> blockParse  ckey mbs
 
 blockParse :: [ParseClass] -> BS.ByteString IO () -> IO ()
@@ -49,9 +49,9 @@ blockParse !ckey = runParses (seekInObj' ckey)
 blockParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
 blockParse' !ckey = runParsed (seekInObj' ckey)
 
-lineParse :: [ParseClass] -> Maybe String -> Bool -> Bool -> IO ()
-lineParse !ckey Nothing     = streamZepto (seekInObjZepto ckey)
-lineParse !ckey (Just !url) = streamZeptoHttp (seekInObjZepto ckey) url
+lineParse :: [ParseClass] -> BS.ByteString IO () -> IO ()
+lineParse !ckey mbs =
+  streamZepto (seekInObjZepto ckey) mbs
 
 lineParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
 lineParse' !ckey mbs =

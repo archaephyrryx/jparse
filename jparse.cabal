@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c321eed3b71e73be98973871b5c406c1e305ab5515853b4c38ec2ff4f85242f0
+-- hash: 94838c444d3207b43e7e2286c9de4d947218abc79208400666243d67bbb2693b
 
 name:           jparse
 version:        0.1.0.0
@@ -30,6 +30,8 @@ library
       Data.ByteString.Build
       Data.ByteString.Seek
       Data.ByteString.Split
+      Data.ByteString.Streaming.Gates
+      Data.ByteString.Streaming.Sources
       Data.Nullable
       JParse
       JParse.Attoparsec
@@ -82,9 +84,7 @@ library
 executable jparse-exe
   main-is: Main.hs
   other-modules:
-      Gates
       Options
-      Sources
       Paths_jparse
   hs-source-dirs:
       app

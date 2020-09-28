@@ -22,8 +22,8 @@ import JParse.Zepto
 import Options
 
 import Options.Applicative
-import Sources (getHttp, getStdin, condUnzip, unzip)
-import Gates
+
+import Data.ByteString.Streaming.Gates
 
 import Data.ByteString.Build
 

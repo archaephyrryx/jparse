@@ -1,4 +1,4 @@
-module Sources where
+module Data.ByteString.Streaming.Sources where
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming as BS

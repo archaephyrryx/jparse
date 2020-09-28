@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Gates (generate) where
+module Data.ByteString.Streaming.Gates (generate) where
 
 import Prelude hiding (unzip)
 
@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Streaming as BS
 
-import Sources
+import Data.ByteString.Streaming.Sources
 
 import JParse.Channels
 import JParse.Global
@@ -22,7 +22,7 @@ type IsZipped = Bool
 
 produce :: (ChanBounded B.ByteString -> IO (BS.ByteString IO ())) -> IO (BS.ByteString IO ())
 produce mf = do
-  outgate <- newChanBounded uBound_gate
+  outgate <- newChanBounded uBound_work
   mf outgate
 
 generate :: IsGated -> IsZipped -> Maybe String -> IO (BS.ByteString IO ())

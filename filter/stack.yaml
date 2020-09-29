@@ -1,0 +1,20 @@
+resolver: lts-16.15
+flags: {}
+extra-package-dbs: []
+packages:
+- '.'
+- '..'
+- idna/
+extra-deps:
+- punycode-2.0
+- stringprep-1.0.0
+- streaming-utils-0.2.0.0@sha256:f02293b9f45f0eef6b78b6873ad7b94ff8c243a6b2a28f8465a6de59f03ad371,4213
+- json-stream-0.4.2.4@sha256:8b7f17d54a6e1e6311756270f8bcf51e91bab4300945400de66118470dcf51b9,4716
+extra-include-dirs:
+- /usr/local/opt/icu4c/include/
+extra-lib-dirs:
+- /usr/local/opt/icu4c/lib/
+flags:
+ghc-options:
+    $locals: -Wall -O2 -optc-O3 -threaded
+    $everything: -Wall -O2

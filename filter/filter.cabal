@@ -1,0 +1,37 @@
+Name:                filter
+Version:             0.0.0.0
+Synopsis:            filter
+Description:         Extract PSL prefixes from stream
+License:             BSD3
+Author:              Viktor Dukhovni
+Maintainer:          postfix-users@dukhovni.org
+Category:            Commands
+Build-Type:          Simple
+Cabal-Version:       >=1.10
+
+Executable filter
+  HS-Source-Dirs: "."
+  Default-Language: Haskell2010
+  GHC-Options: -Wall -O3
+  Main-Is: Filter.hs
+
+  Other-Modules:
+      Toascii
+    , FilterOPtions
+
+  Build-Depends:
+      base
+    , bytestring
+    , conduit
+    , conduit-extra
+    , containers
+    , jparse
+    , idna
+    , mutable-containers
+    , optparse-applicative >= 0.14.0.0
+    , resourcet
+    , streaming
+    , streaming-bytestring
+    , text
+    , transformers
+    , unordered-containers

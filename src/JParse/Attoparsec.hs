@@ -8,6 +8,7 @@
 module JParse.Attoparsec
   ( module JParse.Attoparsec.Streaming
   , putLnBuilderS
+  , mapParses
   , runParses
   , runParsed
   ) where
@@ -27,6 +28,14 @@ import Streaming (Stream, Of)
 putLnBuilderS :: MonadIO m => Stream (Of Builder) m () -> m ()
 putLnBuilderS = S.mapM_ putLnBuilder
 {-# INLINE putLnBuilderS #-}
+
+mapParses :: A.Parser (Maybe Builder)
+          -> (Builder -> x -> x) -> x -> (x -> a)
+          -> BS.ByteString IO ()
+          -> IO a
+mapParses parser f z g src =
+  let str = blockParseStream (A.parse parser) src
+   in S.fold_ (flip f) z g $ str
 
 -- | Run 'parseS' using a given parser over arbitrary upstream
 -- and output the results using 'putLnBuilderS'

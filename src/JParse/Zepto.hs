@@ -130,7 +130,7 @@ laborFold :: ChanBounded (Maybe b)
           -> IO ()
 laborFold output parser f z g lbs = do
   let xs = refold unconsLine (accZeptoFold parser f) z lbs
-  let !ys = Just $ g xs
+  let !ys = Just $! g xs
   writeChanBounded output ys
 {-# INLINE laborFold #-}
 

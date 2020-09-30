@@ -12,22 +12,20 @@ Cabal-Version:       >=1.10
 Executable filter
   HS-Source-Dirs: "."
   Default-Language: Haskell2010
-  GHC-Options: -Wall -O3
+  GHC-Options: -Wall -O2 -threaded -rtsopts=all -optc-O3
   Main-Is: Filter.hs
 
   Other-Modules:
       Toascii
-    , FilterOPtions
+    , FilterOptions
 
   Build-Depends:
       base
     , bytestring
-    , conduit
-    , conduit-extra
-    , containers
+    -- , containers
     , jparse
     , idna
-    , mutable-containers
+    -- , mutable-containers
     , optparse-applicative >= 0.14.0.0
     , resourcet
     , streaming

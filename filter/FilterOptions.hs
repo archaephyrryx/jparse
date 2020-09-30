@@ -25,24 +25,18 @@ data FilterOptions =
 
 filterOptionsParser :: Parser FilterOptions
 filterOptionsParser = do
-  query <- queryParse
   mode  <-  modeParse
   zipped <- zippedParse
   gated <- gatedParse
   http <- httpParse
-  (sfile,tfile) <- optsParser
-  return FilterOptions{..}
-
--- | Top-level option parser
-optsParser :: Parser (FilePath, FilePath)
-optsParser = do
   sfile <- strArgument
            ( metavar "SuffixFile"
            <> help "public suffix file" )
   tfile <- strArgument
            ( metavar "TLDFile"
            <> help "wanted TLD file" )
-  pure (sfile, tfile)
+  query <- queryParse
+  return FilterOptions{..}
 
 -- | Execute the top-level parser and return the result or fail on error
 getOpts :: IO FilterOptions

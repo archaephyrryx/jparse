@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Data.ByteString.Streaming.Gates (generate) where
+module Data.ByteString.Streaming.Gates (IsGated, IsZipped, generate) where
 
 import Prelude hiding (unzip)
 
@@ -17,7 +17,10 @@ import JParse.Global
 
 import Control.Concurrent.Async
 
+-- | Semantically transparent alias for 'Bool' when used to indicate \'gated\' parameter
 type IsGated = Bool
+
+-- | Semantically transparent alias for 'Bool' when used to indicate \'zipped\' parameter
 type IsZipped = Bool
 
 -- supplies closures with an output channel to act as a final 'gate' mechanism
@@ -32,12 +35,12 @@ produce mf = do
 -- | Generates a monadic 'BS.ByteString' in the 'IO' monad from different types of input source
 -- and format.
 --
--- 'Gating' tends to yield marginal performance improvements for higher thread-counts,
+-- \'Gating\' tends to yield marginal performance improvements for higher thread-counts,
 -- and especially when the source is zlib-compressed data retrieved over http(s). When parallel
 -- capabilities are limited or the input is not zlib-compressed http data, gating may instead
 -- inflate memory usage with zero (or possibly negative) change in performance.
-generate :: IsGated  -- ^ Indicates whether 'gating' is desired
-         -> IsZipped -- ^ Indicates whether input stream is zlib-compressed
+generate :: IsGated  -- ^ Indicates whether \'gating\' is desired (Alias for 'Bool')
+         -> IsZipped -- ^ Indicates whether input stream is zlib-compressed (Alias for 'Bool')
          -> Maybe String -- ^ Optional http(s) URL to retrieve data from, otherwise reading stdin
          -> IO (BS.ByteString IO ()) -- ^ Output monadic 'BS.ByteString' consisting of raw JSON data
 generate _     False  Nothing   = return $ getStdin

@@ -1,10 +1,8 @@
 # jparse
 
-**jparse** is an experimental package consisting of a specialized library designed to parse a large volume of JSON objects in a consistent fashion. Unlike other
-libraries that provide JSON parsers, the use-pattern this project was designed to facilitate is specific enough to obviate any need for storing Haskell-based
-representations of JSON objects or values.
+**jparse** is JSON-parsing library designed to efficiently extract the value associated with a single **query-key** from large batches of JSON objects.
 
-The original and current scope of this library corresponds to a single use-case, in which the desired operation is bulk-extraction of the values associated with a single (constant) **query-key** from an input stream consisting of many individual JSON objects. As such, this project does not support extracting more than one value from any object, and is currently limited to extracting string-valued elements.
+Unlike full-feature JSON parsing libraries, **jparse** avoids converting input into intermediate representations. As such, this project does not support extracting more than one value from any object, and is currently limited to extracting string-valued elements only.
 
 Approach
 ========
@@ -25,14 +23,24 @@ ASCII-only JSON objects, each **query-key** is preemptively converted into a seq
 
 The process of matching a given JSON key against this canonicalized **query-key** then consists of iteratively attempting to parse one of the byte-sequences that corresponds to a valid encoding of a canonicalized character, short-circuiting after the first failed attempt.
 
-While it would theoretically be possible to attain a marginal performance improvement by specializing for cases where it is known in advance how the queried key is represented inside each JSON object, such a specialization is unplanned at this time, as the process of matching against a given key
-is a cheap operation when compared to the overhead for I/O operations and the process of parsing (or skipping) the contents of the JSON object as a whole.
-
 Executable Usage
 ================
 
-The current implementation of the executable included in this project reads JSON data from standard input and prints extracted values to standard output. The standard input is expected to be formatted as a stream of JSON objects, separated only by whitespace or newlines. This input may either be provided raw, or compressed using the zlib codec (e.g. using gzip or similar) provided that the `--zipped` (shortened to `-z`) flag is used.
+The current implementation of the executable included in this project reads JSON data from standard input and prints extracted values to standard output. The standard input is expected to be formatted as a stream of JSON objects, separated only by whitespace or newlines. This input may either be provided raw, or compressed using the zlib codec (e.g. using gzip or similar) provided that the `--zipped` (shortened to `-z`) flag is used. Additionally, the executable supports retrieving input from an http source using the `--http-url` (shortened to `-u`) flag, which accepts a URL as an argument.
+
+An additional option `--gated` (or `-g`) enables **gating**, wherein intermediate `BoundedChan`s allow for separate threads to handle separate steps of preprocessing input (e.g. http request handling and unzipping). This option works best for high thread-counts, especially when both `-u <URL>` and `-z` are specified. It may otherwise lead to a reduction in performance.
 
 The only non-option argument to the executable is the **query-key**, which defaults to "name" (for historical reasons).
 
 Option parsing is done using the `optparse-applicative` library, meaning that most of the details regarding executable usage are more reliably obtained via the `--help` flag of the executable, which reflects ongoing changes.
+
+Library Usage
+=============
+
+In order to use this library for other applications, three key steps of a pipeline are important to highlight:
+
+1. Generation of an input streaming-bytestring ([Data.ByteString.Streaming.Gates](/src/Data/ByteString/Streaming/Gates.hs) and [Data.ByteString.Streaming.Sources](/src/Data/ByteString/Streaming/Sources.hs)
+2. Stream-parsing of the input ([JParse.Zepto](/src/JParse/Zepto.hs), [JParse.Driver](/src/JParse/Driver.hs), [JParse.Attoparsec](/src/JParse/Attoparsec.hs))
+3. (Optional) Post-processing stream output (for [JParse.Zepto](/src/JParse/Zepto.hs) and [JParse.Attoparsec](/src/JParse/Attoparsec.hs))
+
+It is possible for users to provide their own streaming-bytestring as input, provided it is pre-processed sufficiently to be in raw JSON format. See documentation notes in the [Options](/app/Options.hs) module regarding input format and the appropriate stream-parser selection.

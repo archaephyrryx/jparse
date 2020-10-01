@@ -8,7 +8,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module JParse.Zepto where
+module JParse.Zepto (lineParseStream, lineParseFold) where
 
 import Streaming
 import qualified Streaming.Prelude as S

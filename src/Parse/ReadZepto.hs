@@ -147,7 +147,8 @@ skipNumber = Z.skipWhile nonTerminal >> Z.skipSpace
 
 -- | efficiently skips to end of current object without validating sanity of contents
 --
---   XXX: optimized for line-mode in which it is possible to ignore rest of input
+--   XXX: optimized for line-mode in which it is possible to ignore rest of input. This
+--        combinator implicitly assumes that it is being run over a single JSON object.
 skipRestObj :: Z.Parser ()
 skipRestObj = pure ()
 {-# INLINE skipRestObj #-}

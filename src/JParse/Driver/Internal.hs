@@ -1,7 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -30,6 +27,7 @@ data ZEnv
      , output :: ChanBounded (Maybe B.ByteString) -- ^ channel for parsed output
      }
 
+-- | Generate a new 'ZEnv' object in the 'IO' monad
 newZEnv :: IO ZEnv
 newZEnv = do
   nworkers <- nWorkers
@@ -38,12 +36,13 @@ newZEnv = do
   output <- newChanBounded uBound_work
   return ZEnv{..}
 
+-- | Manifest each monadic 'BS.ByteString' in a 'Stream' as a strict 'B.ByteString'
 toStricts :: Monad m => Stream (BS.ByteString m) m r -> Stream (Of B.ByteString) m r
 toStricts = mapped _toStrict
   where
     _toStrict :: Monad m => BS.ByteString m r -> m (Of B.ByteString r)
     _toStrict mbs = do
       (lbs :> ret) <- BS.toLazy mbs
-      return (L.toStrict lbs :> ret)
+      return $! (L.toStrict lbs :> ret)
     {-# INLINE _toStrict #-}
 {-# INLINE toStricts #-}

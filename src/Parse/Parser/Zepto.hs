@@ -6,12 +6,10 @@
 {-# LANGUAGE MultiWayIf #-}
 
 
--- Modified clone of Data.Attoparsec.Zepto for comparative benchmarking
-
-
+-- | Heavily modified variant of "Data.Attoparsec.Zepto" optimized for performance,
+--   including a number of additional combinators and reimplementation of the 'Parser' type.
 module Parse.Parser.Zepto
-  (
-    Parser
+  ( Parser
   , Result(..)
   , parseR
   , parse
@@ -41,6 +39,9 @@ import qualified Data.ByteString.Unsafe as B
 
 newtype S = S { input :: ByteString }
 
+-- | Data type representing the outcome of running a parser, which is either
+--  a briefly explained failure,
+--  or a successful parse of a (strict) value and the leftover parser state.
 data Result a = Fail String
               | OK !a S
 
@@ -49,6 +50,11 @@ data Result a = Fail String
 -- This monad is strict in its state, and the monadic bind operator
 -- ('>>=') evaluates each result to weak head normal form before
 -- passing it along.
+--
+-- As there is no possibility of retrying any parser with additional input,
+-- virtually all parser-combinators will fail if there is insufficient input
+-- to complete a parse. This behavior is therefore implicitly noted for all
+-- combinators defined in this module, unless otherwise specified.
 newtype Parser a = Parser { runParser :: S -> Result a }
 
 instance Functor Parser where
@@ -129,6 +135,8 @@ instance Alternative Parser where
   {-# INLINE (<|>) #-}
 
 -- | Consume input while the predicate returns 'True'.
+--
+-- Terminates without failing if reached end of input.
 takeWhile :: (Word8 -> Bool) -> Parser ByteString
 takeWhile p = do
   (h,t) <- gets (B.span p . input)
@@ -137,6 +145,8 @@ takeWhile p = do
 {-# INLINE takeWhile #-}
 
 -- | Skip input while the predicate returns 'True'
+--
+-- Terminates without failing if reached end of input.
 skipWhile :: (Word8 -> Bool) -> Parser ()
 skipWhile p = do
   t <- gets (B.dropWhile p . input)
@@ -161,6 +171,9 @@ skip !n = do
     else fail "insufficient input"
 {-# INLINE skip #-}
 
+-- | Return next byte without modifying state.
+--
+-- Returns 'Nothing' if at end of input.
 peek :: Parser (Maybe Word8)
 peek = do
   s <- gets input
@@ -169,6 +182,7 @@ peek = do
      else pure Nothing
 {-# INLINE peek #-}
 
+-- | Consume and return next byte.
 pop :: Parser Word8
 pop = do
   s <- gets input
@@ -177,6 +191,7 @@ pop = do
      else fail "insufficient input"
 {-# INLINE pop #-}
 
+-- | Match a single byte exactly.
 word8 :: Word8 -> Parser ()
 word8 w = do
   i <- gets input
@@ -200,10 +215,10 @@ string s = do
 stringCI :: ByteString -> Parser ()
 stringCI s = do
   i <- gets input
-  let n = B.length s
+  let !n = B.length s
   if n <= B.length i
     then if s `lowEq` B.unsafeTake n i
-      then put (S (B.unsafeDrop (B.length s) i))
+      then put (S (B.unsafeDrop n i))
       else fail "stringCI"
     else fail "insufficient input"
 {-# INLINE stringCI #-}
@@ -217,6 +232,8 @@ lowEq b1 b2 = B.map toLower b1 == B.map toLower b2
               | otherwise          = w
 {-# INLINE lowEq #-}
 
+-- | Skips the \'payload\' and end-quote of a @"@-delimited string, requiring that
+-- the leading double-quote has already been consumed.
 skipEndQuote :: Parser ()
 skipEndQuote = do
   i <- gets input

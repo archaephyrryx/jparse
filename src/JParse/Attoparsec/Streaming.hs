@@ -38,7 +38,7 @@ import JParse.Attoparsec.Common
 import JParse.Helper (cond, doJust)
 
 -- | Run 'parseS' using a given parser over arbitrary upstream
--- and return stream of unwrapped @Just@ results
+-- and return stream of unwrapped 'Just' results
 blockParseStream :: (MonadIO m, MonadFail m)
                  => (B.ByteString -> A.Result (Maybe a)) -- ^ parse function
                  -> BS.ByteString m () -- ^ input monadic bytestring
@@ -58,6 +58,8 @@ blockParseStream parser src = runParseS $ src
         _       -> pure ()
 {-# INLINE blockParseStream #-}
 
+-- | Run 'AS.parsed' using a given parser over arbitrary upstream and
+-- return stream of unwrapped 'Just' results
 blockParsed :: A.Parser (Maybe a) -> BS.ByteString IO r -> Stream (Of a) IO ()
 blockParsed parser src = loop $ AS.parsed parser src
   where

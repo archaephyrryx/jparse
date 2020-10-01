@@ -7,36 +7,30 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module JParse.Driver where
+-- | Line-mode concurrent stream-parser that writes successful parse-results to
+--   stdout without any post-processing.
+module JParse.Driver (streamZepto) where
 
 import qualified Data.ByteString.Streaming as BS
-
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-import Data.ByteString (ByteString)
-
-import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as D
-
-import Data.ByteString.Split (unconsLine)
-
 import qualified Parse.Parser.Zepto as Z
 
-import JParse.Helper
-import JParse.Channels
-import JParse.Streams (lazyLineSplit)
-
-import JParse.Driver.Internal
-
--- Concurrency mode
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Monad (replicateM_, unless)
-
-
+import Data.ByteString (ByteString)
 import Data.ByteString.Build (buildLong)
--- * LineMode specialization
+import Data.ByteString.Builder (Builder)
+import Data.ByteString.Split (unconsLine)
+import JParse.Channels
+import JParse.Driver.Internal
+import JParse.Helper
+import JParse.Streams (lazyLineSplit)
 
+-- | Runs a parser in parallel threads over batches of lines from input 'BS.ByteString'
+-- and writes each finished batch to stdout.
 streamZepto :: Z.Parser (Maybe Builder) -> BS.ByteString IO () -> IO ()
 streamZepto z mbs = do
   ZEnv{..} <- newZEnv
@@ -46,6 +40,8 @@ streamZepto z mbs = do
   monitor output nw
   wait done
 
+-- | Wait until all worker threads have encountered end-of-input marker
+-- and write end-of-output marker to output channel
 monitor :: ChanBounded (Maybe a) -> TVar Int -> IO ()
 monitor output nw = do
   atomically $ do
@@ -53,6 +49,9 @@ monitor output nw = do
     unless (n == 0) retry
   writeChanBounded output Nothing
 
+-- | Continually read from output channel and print
+-- values to stdout, terminating when end-of-output
+-- marker is encountered.
 collector :: ChanBounded (Maybe ByteString) -> IO ()
 collector output = go
   where
@@ -60,6 +59,10 @@ collector output = go
            Just bs -> B.putStr bs >> go
            Nothing -> return ()
 
+-- | Dispatch non-empty batches of lines to 'labor' function
+-- and decrements semaphore 'TVar' when end-of-input marker is
+-- encountered (replaces end-of-input marker in channel to signal
+-- other waiting worker threads)
 worker :: ChanBounded L.ByteString
        -> ChanBounded (Maybe ByteString)
        -> TVar Int
@@ -75,6 +78,9 @@ worker input output nw z = go
            writeChanBounded input lbs
          else labor output z lbs >> go
 
+-- | Performs a 'refold' of lazy 'L.ByteString' containing a batch of multiple lines,
+-- manifests resultant 'D.Builder' as a strict 'B.ByteString' which is then written to
+-- the output channel
 labor :: ChanBounded (Maybe ByteString)
       -> Z.Parser (Maybe Builder)
       -> L.ByteString
@@ -84,6 +90,8 @@ labor output z lbs = do
       !bs = buildLong bld
   writeChanBounded output (Just bs)
 
+-- | Prepends result of successful parses to accumulator 'D.Builder' with
+-- intervening newline (@\\n@) character
 accZepto :: Z.Parser (Maybe Builder)
          -> L.ByteString
          -> Builder

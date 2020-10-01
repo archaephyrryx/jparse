@@ -25,28 +25,33 @@ import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString.Builder (Builder)
 import Streaming (Stream, Of)
 
+-- | Prints each 'D.Builder' in a 'Stream' to stdout with trailing newlines
 putLnBuilderS :: MonadIO m => Stream (Of Builder) m () -> m ()
 putLnBuilderS = S.mapM_ putLnBuilder
 {-# INLINE putLnBuilderS #-}
 
-mapParses :: A.Parser (Maybe Builder)
-          -> (Builder -> x -> x) -> x -> (x -> a)
-          -> BS.ByteString IO ()
-          -> IO a
+-- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
+-- using the provided accumulation function, initial value, and finalization function.
+mapParses :: A.Parser (Maybe Builder) -- ^ Parser to be run
+          -> (Builder -> x -> x) -- ^ Accumulation function
+          -> x -- ^ Initial value
+          -> (x -> a) -- ^ Finalization function
+          -> BS.ByteString IO () -- ^ Input monadic 'BS.ByteString'
+          -> IO a -- ^ Finalized result
 mapParses parser f z g src =
   let str = blockParseStream (A.parse parser) src
    in S.fold_ (flip f) z g $ str
 
--- | Run 'parseS' using a given parser over arbitrary upstream
--- and output the results using 'putLnBuilderS'
+-- | Runs 'parseS' using a given parser over arbitrary upstream
+-- and outputs the results using 'putLnBuilderS'
 runParses :: A.Parser (Maybe Builder)
           -> BS.ByteString IO ()
           -> IO ()
 runParses parser src = putLnBuilderS $ blockParseStream (A.parse parser) src
 {-# INLINE runParses #-}
 
--- | Run 'blockParsed' using a given parser over arbitrary upstream
--- and output the results using 'putLnBuilderS'
+-- | Runs 'blockParsed' using a given parser over arbitrary upstream
+-- and outputs the results using 'putLnBuilderS'
 runParsed :: A.Parser (Maybe Builder)
           -> BS.ByteString IO ()
           -> IO ()

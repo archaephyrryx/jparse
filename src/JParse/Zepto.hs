@@ -8,6 +8,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
+-- | Line-mode concurrent stream-parser that returns successful parse-results in a 'Stream'
+--   with optional post-processing.
 module JParse.Zepto (lineParseStream, lineParseFold) where
 
 import Streaming
@@ -39,7 +41,7 @@ import Control.Monad (replicateM_, unless)
 import qualified Data.Nullable as N
 
 
--- | Parses a monadic bytestring that is already pre-processed to raw JSON format
+-- | Parses a monadic bytestring that holds exactly one object per line
 lineParseStream :: Z.Parser (Maybe a)
                 -> BS.ByteString IO ()
                 -> Stream (Of [a]) IO ()
@@ -47,9 +49,12 @@ lineParseStream parser mbs = parseLines parser $ lazyLineSplit mbs
 {-# INLINE lineParseStream #-}
 
 -- | Parses a monadic bytestring that is already pre-processed to raw JSON format
---   and processes output with specified fold-and-convert parameters
-lineParseFold :: Z.Parser (Maybe a)
-              -> (a -> x -> x) -> x -> (x -> b)
+--   and processes output with specified accumulation and finalization functions
+--   per-batch
+lineParseFold :: Z.Parser (Maybe a) -- ^ Parser to run over each line
+              -> (a -> x -> x) -- ^ Accumulation function
+              -> x -- ^ Initial value of accumulator
+              -> (x -> b) -- ^ Finalization function to run over final accumulator value per-batch
               -> BS.ByteString IO ()
               -> Stream (Of b) IO ()
 lineParseFold parser f z g mbs = parseLinesFold parser f z g $ lazyLineSplit mbs

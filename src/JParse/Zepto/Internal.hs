@@ -42,6 +42,7 @@ data ZEnv f a
      , output   :: ChanBounded (f a) -- ^ channel for parsed output
      }
 
+-- | Generate a new 'ZEnv' object in the 'IO' monad
 newZEnv :: IO (ZEnv f a)
 newZEnv = do
   nworkers <- nWorkers

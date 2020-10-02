@@ -34,8 +34,8 @@ putLnBuilderS = S.mapM_ putLnBuilder
 -- using the provided accumulation function, initial value, and finalization function.
 mapParses :: A.Parser (Maybe Builder) -- ^ Parser to be run
           -> (Builder -> x -> x) -- ^ Accumulation function
-          -> x -- ^ Initial value
-          -> (x -> a) -- ^ Finalization function
+          -> x -- ^ Initial value of accumulator
+          -> (x -> a) -- ^ Finalization function to run over final accumulator value
           -> BS.ByteString IO () -- ^ Input monadic 'BS.ByteString'
           -> IO a -- ^ Finalized result
 mapParses parser f z g src =

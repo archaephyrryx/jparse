@@ -8,6 +8,7 @@
 module JParse.Zepto.Internal where
 
 import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Reader (ReaderT(..), ask)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
@@ -43,10 +44,11 @@ data ZEnv f a
      }
 
 -- | Generate a new 'ZEnv' object in the 'IO' monad
-newZEnv :: IO (ZEnv f a)
+newZEnv :: ReaderT GlobalConf IO (ZEnv f a)
 newZEnv = do
-  nworkers <- nWorkers
-  nw <- newTVarIO nworkers
-  input <- newChanBounded uBound_work
-  output <- newChanBounded uBound_work
+  GlobalConf{..} <- (lift . resetWorkerCount =<< ask)
+  let nworkers = wkThreads
+  nw     <- lift $ newTVarIO wkThreads
+  input  <- lift $ newChanBounded workLimit
+  output <- lift $ newChanBounded workLimit
   return ZEnv{..}

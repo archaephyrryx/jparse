@@ -190,17 +190,8 @@ extract' :: Either String (Maybe Builder) -> Int
 extract' (Right (Just x)) = B.length $ build x
 extract' _ = 0
 
-keyToParser str =
-  let key = qkey str
-      ckey = mapClass key
-   in seekInObj ckey
+keyToParser = strToAtto
 
-keyToParser' str =
-  let key = qkey str
-      ckey = mapClass key
-   in seekInObj' ckey
+keyToParser' = strToAtto'
 
-keyToZepto str =
-  let key = qkey str
-      ckey = mapClass key
-   in seekInObjZepto ckey
+keyToZepto = strToZepto

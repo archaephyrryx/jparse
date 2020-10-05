@@ -4,6 +4,8 @@ module Data.ByteString.Streaming.Gates (IsGated, IsZipped, generate) where
 
 import Prelude hiding (unzip)
 
+import Control.Monad.Trans.Reader (ReaderT(..), ask, asks)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Resource (runResourceT)
 import Control.Monad.IO.Class (MonadIO(..))
 
@@ -27,10 +29,12 @@ type IsZipped = Bool
 --
 -- Allows generation of a monadic ByteString to be handled in a separate thread
 -- from input processing in order to isolate throughput bottlenecks.
-produce :: (ChanBounded B.ByteString -> IO (BS.ByteString IO ())) -> IO (BS.ByteString IO ())
+produce :: (Int -> ChanBounded B.ByteString -> IO (BS.ByteString IO ()))
+        -> ReaderT GlobalConf IO (BS.ByteString IO ())
 produce mf = do
-  outgate <- newChanBounded uBound_work
-  mf outgate
+  uBound_gate <- asks gateLimit
+  uBound_work <- asks workLimit
+  lift $ newChanBounded uBound_work >>= mf uBound_gate
 
 -- | Generates a monadic 'BS.ByteString' in the 'IO' monad from different types of input source
 -- and format.
@@ -42,19 +46,19 @@ produce mf = do
 generate :: IsGated  -- ^ Indicates whether \'gating\' is desired (Alias for 'Bool')
          -> IsZipped -- ^ Indicates whether input stream is zlib-compressed (Alias for 'Bool')
          -> Maybe String -- ^ Optional http(s) URL to retrieve data from, otherwise reading stdin
-         -> IO (BS.ByteString IO ()) -- ^ Output monadic 'BS.ByteString' consisting of raw JSON data
+         -> ReaderT GlobalConf IO (BS.ByteString IO ()) -- ^ 'GlobalConf' 'ReaderT' around output monadic 'BS.ByteString' consisting of raw JSON data
 generate _     False  Nothing   = return $ getStdin
 generate False True   Nothing   = return $ unzip getStdin
-generate True  True   Nothing   = produce $ \outgate -> do
+generate True  True   Nothing   = produce $ \_ outgate -> do
   async $ writeBS outgate $ unzip getStdin
   return $ readBS outgate
-generate False zipped (Just !u) = produce $ \outgate -> do
+generate False zipped (Just !u) = produce $ \_ outgate -> do
   link =<< async (runResourceT $ writeBS outgate . condUnzip zipped =<< getHttp u)
   return $ readBS outgate
-generate True  False  (Just !u) = produce $ \outgate -> do
+generate True  False  (Just !u) = produce $ \_ outgate -> do
   link =<< async (runResourceT $ writeBS outgate =<< getHttp u)
   return $ readBS outgate
-generate True  True   (Just !u) = produce $ \outgate -> do
+generate True  True   (Just !u) = produce $ \uBound_gate outgate -> do
   gate  <- newChanBounded uBound_gate
   link =<< async (runResourceT $ writeBS gate =<< getHttp u)
   link =<< async (writeBS outgate $ unzip $ readBS gate)

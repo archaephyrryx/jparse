@@ -5,6 +5,43 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-|
+Module      : JParse.Zepto
+Description : Single-threaded stream-parsing in Block-Mode
+Copyright   : (c) Peter Duchovni, 2020
+License     : BSD-3
+Maintainer  : caufeminecraft+github@gmail.com
+
+Block-Mode stream-parsers to be used when JSON input is not strictly one-per-line
+(i.e. individual objects span multiple lines or multiple objects appear on the same line),
+or when the input lines may be too long to be reasonably read into memory.
+
+The top-level functions 'mapParses', 'runParses', and 'runParsed' are all \"drivers\" for
+stream-parsers, and perform IO computations rather than returning their output streams.
+In the case of 'mapParses', the computation is a fold-and-finalize operation specified
+by the caller, while 'runParses' and 'runParsed' both print the output of the result-'Streaming.Stream'
+to stdout.
+
+The parser-library these functions are implemented in terms of is "Parse.Parser.Attoparsec",
+which renames and re-exports a limited set of parser-combinators from the "Data.Attoparsec.ByteString"
+module. In order to actually perform the desired bulk-extraction of values associated with a query key,
+the parser combinator to be passed in to any of these functions should be one of
+
+@
+'JParse.Internal.strToAtto (key :: String)
+@
+
+or
+
+@
+'JParse.Internal.strToAtto'' (key :: String)
+@
+
+The two top-level parser combinators suggested above respectively prioritize
+JSON validation over efficiency, and vice versa. If the JSON data is known
+to be valid, the latter is preferable.
+
+-}
 module JParse.Attoparsec
   ( module JParse.Attoparsec.Streaming
   , putLnBuilderS

@@ -6,11 +6,10 @@
 module Options where
 
 import Data.ByteString (ByteString)
-import JParse (qkey)
 import Options.Applicative
 
 
-type Qstring = ByteString
+type Qstring = String
 
 data Options =
   Options { query  :: Qstring
@@ -30,12 +29,12 @@ getOptions = do
   return Options{..}
 
 queryParse :: Parser Qstring
-queryParse = do
-  s <- argument str ( metavar "QUERY KEY"
-                    <> showDefault
-                    <> value "name"
-                    )
-  return $ qkey s
+queryParse =
+  argument str
+    ( metavar "QUERY KEY"
+    <> showDefault
+    <> value "name"
+    )
 
 modeParse :: Parser Mode
 modeParse =

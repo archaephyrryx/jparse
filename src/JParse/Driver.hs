@@ -28,13 +28,14 @@ import JParse.Channels
 import JParse.Driver.Internal
 import JParse.Helper
 import JParse.Streams (lazyLineSplit)
+import JParse.Global
 
 -- | Runs a parser in parallel threads over batches of lines from input 'BS.ByteString'
 -- and writes each finished batch to stdout.
 streamZepto :: Z.Parser (Maybe Builder) -> BS.ByteString IO () -> IO ()
 streamZepto z mbs = do
-  ZEnv{..} <- newZEnv
-  async $ feedChanBounded input $ lazyLineSplit mbs
+  ZEnv{..} <- withConf defaultGlobalConf newZEnv
+  async $ feedChanBounded input $ lazyLineSplit (batchSize defaultGlobalConf) mbs
   replicateM_ nworkers $ async $ worker input output nw z
   done <- async $ collector output
   monitor output nw

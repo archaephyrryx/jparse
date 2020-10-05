@@ -21,6 +21,8 @@ import JParse.Driver
 import JParse.Zepto
 import Options
 
+import JParse.Global
+
 import Options.Applicative
 
 import Data.ByteString.Streaming.Gates
@@ -37,26 +39,28 @@ opts =
 main :: IO ()
 main = do
   Options{..} <- execParser opts
-  let !ckey = mapClass $! query
-  mbs <- generate gated zipped http
+  mbs <- withConf defaultGlobalConf $ generate gated zipped http
   case mode of
-    LineMode  -> lineParse' ckey mbs
-    BlockMode -> blockParse  ckey mbs
+    LineMode  -> lineParse' query mbs
+    BlockMode -> blockParse  query mbs
 
-blockParse :: [ParseClass] -> BS.ByteString IO () -> IO ()
-blockParse !ckey = runParses (seekInObj' ckey)
+blockParse :: String -> BS.ByteString IO () -> IO ()
+blockParse = runParses . strToAtto'
+{-# INLINE blockParse #-}
 
-blockParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
-blockParse' !ckey = runParsed (seekInObj' ckey)
+blockParse' :: String -> BS.ByteString IO () -> IO ()
+blockParse' = runParsed . strToAtto' 
+{-# INLINE blockParse' #-}
 
-lineParse :: [ParseClass] -> BS.ByteString IO () -> IO ()
-lineParse !ckey mbs =
-  streamZepto (seekInObjZepto ckey) mbs
+lineParse :: String -> BS.ByteString IO () -> IO ()
+lineParse = streamZepto . strToZepto
+{-# INLINE lineParse #-}
 
-lineParse' :: [ParseClass] -> BS.ByteString IO () -> IO ()
-lineParse' !ckey mbs =
+lineParse' :: String -> BS.ByteString IO () -> IO ()
+lineParse' s mbs =
   S.mapM_ B8.putStr $
-    lineParseFold (seekInObjZepto ckey) concatLine mempty buildLong $ mbs
+    lineParseFold (strToZepto s) concatLine mempty buildLong $ mbs
+{-# INLINE lineParse' #-}
 
 concatLine :: D.Builder -> D.Builder -> D.Builder
 concatLine bld rest = bld <> D.word8 0xa <> rest

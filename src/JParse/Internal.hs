@@ -1,6 +1,7 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 
-module JParse.Internal where
+module JParse.Internal (strToZepto, strToAtto, strToAtto') where
 
 import           Control.Monad (mzero)
 import qualified Data.Attoparsec.ByteString as A
@@ -17,8 +18,42 @@ import qualified Parse.ReadZepto as Zep
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z
 
--- | query key function: performs UTF-8 'ByteString' encoding
--- on a query-key read from the command line as a 'String'.
+-- | \"Block-Mode\" 'A.Parser' that attempts to return a 'Builder' consisting of the contents
+-- of the string-value associated with the first JSON key matching a query string.
+--
+-- Performs maximal validation with least optimal performance using "Parse.Parser.Attoparsec".
+strToAtto :: String -- ^ query-key to extract value of
+          -> A.Parser (Maybe Builder) -- ^ JSON-object parser for specified query-key
+strToAtto !str =
+  let !key = qkey str
+      !ckey = mapClass key
+   in seekInObj ckey
+{-# INLINE strToAtto #-}
+
+-- | \"Block-Mode\" 'A.Parser' that attempts to return a 'Builder' consisting of the contents
+-- of the string-value associated with the first JSON key matching a query string.
+--
+-- Performs partial validation with more optimal performance using "Parse.Parser.Attoparsec".
+strToAtto' :: String -> A.Parser (Maybe Builder)
+strToAtto' !str =
+  let !key = qkey str
+      !ckey = mapClass key
+   in seekInObj' ckey
+{-# INLINE strToAtto' #-}
+
+-- | \"Line-Mode\" 'Z.Parser' that attempts to return a 'Builder' consisting of the contents
+-- of the string-value associated with the first JSON key matching a query string.
+--
+-- Performs minimal validation with most optimal performance, using "Parse.Parser.Zepto".
+strToZepto :: String -> Z.Parser (Maybe Builder)
+strToZepto !str =
+  let !key = qkey str
+      !ckey = mapClass key
+   in seekInObjZepto ckey
+{-# INLINE strToZepto #-}
+
+-- | query key function: performs UTF-8 'ByteString' encoding on a
+-- 'String'-valued query-key.
 qkey :: String -> ByteString
 qkey = T.encodeUtf8 . T.pack
 {-# INLINE qkey #-}

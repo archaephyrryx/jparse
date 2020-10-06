@@ -40,7 +40,7 @@ Library Usage
 In order to use this library for other applications, three key steps of a pipeline are important to highlight:
 
 1. Generation of an input streaming-bytestring ([Data.ByteString.Streaming.Gates](/src/Data/ByteString/Streaming/Gates.hs) and [Data.ByteString.Streaming.Sources](/src/Data/ByteString/Streaming/Sources.hs)
-2. Stream-parsing of the input ([JParse.Zepto](/src/JParse/Zepto.hs), [JParse.Driver](/src/JParse/Driver.hs), [JParse.Attoparsec](/src/JParse/Attoparsec.hs))
-3. (Optional) Post-processing stream output (for [JParse.Zepto](/src/JParse/Zepto.hs) and [JParse.Attoparsec](/src/JParse/Attoparsec.hs))
+2. Stream-parsing of the input ([JParse.Zepto](/src/JParse/Zepto.hs) or [JParse.Attoparsec](/src/JParse/Attoparsec.hs))
+3. (Optional) Post-processing stream output
 
 It is possible for users to provide their own streaming-bytestring as input, provided it is pre-processed sufficiently to be in raw JSON format. See documentation notes in the [Options](/app/Options.hs) module regarding input format and the appropriate stream-parser selection.

@@ -23,11 +23,6 @@ monadic 'Data.ByteString.Streaming.ByteString' containing one complete JSON
 object per line, returning the results of each successful parse as a Stream
 (from "Streaming") of values.
 
-* "JParse.Driver" defines a high-level function for applying a parser to a
-monadic 'Data.ByteString.Streaming.ByteString' containing one complete JSON
-object per line, directly outputting the successful parse results to stdout,
-one-per-line
-
 * "JParse.Attoparsec" defines high-level functions for applying a parser to a
 monadic 'Data.ByteString.Streaming.ByteString' containg a stream of JSON objects with more flexible
 formatting constraings, either returning the successful parse results as a
@@ -41,7 +36,7 @@ are suitable for JSON data conforming to different format constraints, and
 offer different performance.
 
 When the input JSON stream is known to contain exactly one complete JSON
-object per line, it is possible to use the "JParse.Zepto" (or "JParse.Driver")
+object per line, it is possible to use the "JParse.Zepto"
 pipeline components, which operate in \"Line-Mode\", using parallel threads to process multiple
 batches of JSON objects independently; the parser-library these functions use
 is the highly optimized "JParse.Parser.Zepto" library, which achieves its efficiency

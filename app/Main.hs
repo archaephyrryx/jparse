@@ -17,7 +17,6 @@ import System.IO (stdout)
 import Parse (mapClass, ParseClass)
 import JParse
 import JParse.Attoparsec
-import JParse.Driver
 import JParse.Zepto
 import Options
 
@@ -41,7 +40,7 @@ main = do
   Options{..} <- execParser opts
   mbs <- withConf defaultGlobalConf $ generate gated zipped http
   case mode of
-    LineMode  -> lineParse' query mbs
+    LineMode  -> lineParse query mbs
     BlockMode -> blockParse  query mbs
 
 blockParse :: String -> BS.ByteString IO () -> IO ()
@@ -53,14 +52,10 @@ blockParse' = runParsed . strToAtto'
 {-# INLINE blockParse' #-}
 
 lineParse :: String -> BS.ByteString IO () -> IO ()
-lineParse = streamZepto . strToZepto
-{-# INLINE lineParse #-}
-
-lineParse' :: String -> BS.ByteString IO () -> IO ()
-lineParse' s mbs =
+lineParse s mbs =
   S.mapM_ B8.putStr $
     lineParseFold (strToZepto s) concatLine mempty buildLong $ mbs
-{-# INLINE lineParse' #-}
+{-# INLINE lineParse #-}
 
 concatLine :: D.Builder -> D.Builder -> D.Builder
 concatLine bld rest = bld <> D.word8 0xa <> rest

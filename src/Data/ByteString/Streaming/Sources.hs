@@ -2,6 +2,7 @@
 
 module Data.ByteString.Streaming.Sources where
 
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Streaming.Char8 as BS8
@@ -48,3 +49,14 @@ condUnzip :: MonadIO m
           -> BS.ByteString m () -- ^ Non-compressed bytestring
 condUnzip !b mbs = if_ b (Zip.gunzip mbs) mbs
 {-# INLINE condUnzip #-}
+
+-- | Manifest each monadic 'BS.ByteString' in a 'Stream' as a strict 'B.ByteString'
+toStricts :: Monad m => Stream (BS.ByteString m) m r -> Stream (Of B.ByteString) m r
+toStricts = mapped _toStrict
+  where
+    _toStrict :: Monad m => BS.ByteString m r -> m (Of B.ByteString r)
+    _toStrict mbs = do
+      (lbs :> ret) <- BS.toLazy mbs
+      return $! (L.toStrict lbs :> ret)
+    {-# INLINE _toStrict #-}
+{-# INLINE toStricts #-}

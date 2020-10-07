@@ -38,10 +38,10 @@ opts =
 main :: IO ()
 main = do
   Options{..} <- execParser opts
-  mbs <- withConf defaultGlobalConf $ generate gated zipped http
+  mbs <- withConf conf $ generate gated zipped http
   case mode of
-    LineMode  -> lineParse query mbs
-    BlockMode -> blockParse  query mbs
+    LineMode  -> lineParse conf query mbs
+    BlockMode -> blockParse query mbs
 
 blockParse :: String -> BS.ByteString IO () -> IO ()
 blockParse = runParses . strToAtto'
@@ -51,10 +51,10 @@ blockParse' :: String -> BS.ByteString IO () -> IO ()
 blockParse' = runParsed . strToAtto' 
 {-# INLINE blockParse' #-}
 
-lineParse :: String -> BS.ByteString IO () -> IO ()
-lineParse s mbs =
+lineParse :: GlobalConf -> String -> BS.ByteString IO () -> IO ()
+lineParse conf s mbs =
   S.mapM_ B8.putStr $
-    lineParseFold (strToZepto s) concatLine mempty buildLong $ mbs
+    lineParseFold conf (strToZepto s) concatLine mempty buildLong $ mbs
 {-# INLINE lineParse #-}
 
 concatLine :: D.Builder -> D.Builder -> D.Builder

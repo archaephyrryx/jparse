@@ -7,6 +7,7 @@ module Options where
 
 import Data.ByteString (ByteString)
 import Options.Applicative
+import JParse.Global
 
 
 type Qstring = String
@@ -17,6 +18,7 @@ data Options =
           , zipped :: Bool
           , gated  :: Bool
           , http   :: Maybe String
+          , conf   :: GlobalConf
           }
 
 getOptions :: Parser Options
@@ -26,6 +28,7 @@ getOptions = do
   zipped <- zippedParse
   gated <- gatedParse
   http <- httpParse
+  conf <- confParse
   return Options{..}
 
 queryParse :: Parser Qstring
@@ -54,6 +57,14 @@ gatedParse = switch (long "gated" <> short 'g' <> help "Whether to 'gate' input 
 
 httpParse :: Parser (Maybe String)
 httpParse = option (Just <$> str) (long "http-url" <> short 'u' <> value Nothing <> metavar "URL" <> help "url from which input is read instead of stdin [line-mode only]")
+
+confParse :: Parser GlobalConf
+confParse = do
+  batchSize <- option auto (long "lines" <> short 'l' <> value (batchSize defaultGlobalConf) <> metavar "NLINES" <> help "Number of lines to process per batch (line-mode only)")
+  wkThreads <- option auto (long "threads" <> short 't' <> value (wkThreads defaultGlobalConf) <> metavar "NTHREADS" <> help "Number of parser threads to spawn (line-mode only)")
+  gateLimit <- option auto (long "width" <> short 'w' <> value (gateLimit defaultGlobalConf) <> metavar "GATESIZE" <> help "Maximum number of items to queue during input gating (gated only)")
+  workLimit <- option auto (long "breadth" <> short 'b' <> value (workLimit defaultGlobalConf) <> metavar "WORKSIZE" <> help "Maximum number of batches to queue in work pipeline")
+  return GlobalConf{..}
 
 -- * Command-line specification of input processing mode
 

@@ -81,124 +81,115 @@ import qualified Data.Nullable as N
 
 -- | Parses a monadic bytestring that holds exactly one JSON object per line, returning a 'Stream' of
 -- lists of the successful parse results for each individual batch.
-lineParseStream :: Z.Parser (Maybe a)
+lineParseStream :: GlobalConf
+                -> Z.Parser (Maybe a)
                 -> BS.ByteString IO ()
                 -> Stream (Of [a]) IO ()
-lineParseStream parser mbs = parseLines parser $ lazyLineSplit (batchSize defaultGlobalConf) mbs
+lineParseStream conf parser mbs = parseLines conf parser $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseStream #-}
 
 -- | Parses a monadic ByteString that is already pre-processed to raw JSON format
 --   and processes output with specified accumulation and finalization functions
 --   per-batch
-lineParseFold :: Z.Parser (Maybe a) -- ^ Parser to run over each line
+lineParseFold :: GlobalConf
+              -> Z.Parser (Maybe a) -- ^ Parser to run over each line
               -> (a -> x -> x) -- ^ Accumulation function
               -> x -- ^ Initial value of accumulator
               -> (x -> b) -- ^ Finalization function to run over final accumulator value per-batch
               -> BS.ByteString IO () -- ^ Input JSON-stream
               -> Stream (Of b) IO ()
-lineParseFold parser f z g mbs = parseLinesFold parser f z g $ lazyLineSplit (batchSize defaultGlobalConf) mbs
+lineParseFold conf parser f z g mbs = parseLinesFold conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFold #-}
 
 -- | Parses a monadic ByteString that is already pre-processed to raw JSON format
 --   and processes output with specified accumulation and monadic finalization functions
 --   per-batch
-lineParseFoldIO :: Z.Parser (Maybe a) -- ^ Parser to run over each line
+lineParseFoldIO :: GlobalConf
+                -> Z.Parser (Maybe a) -- ^ Parser to run over each line
                 -> (a -> x -> x) -- ^ Accumulation function
                 -> x -- ^ Initial value of accumulator
                 -> (x -> IO b) -- ^ Monadic finalization function to run over final accumulator value per-batch
                 -> BS.ByteString IO () -- ^ Input JSON-stream
                 -> Stream (Of b) IO ()
-lineParseFoldIO parser f z g mbs = parseLinesFoldIO parser f z g $ lazyLineSplit (batchSize defaultGlobalConf) mbs
+lineParseFoldIO conf parser f z g mbs = parseLinesFoldIO conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFoldIO #-}
 
 
-parseLines :: Z.Parser (Maybe a)
+-- | Spawns a thread that writes the contents of a 'Stream' of lazy 'L.ByteString' to a 'ChanBounded'
+-- of the same type.
+disperse :: ChanBounded L.ByteString
+           -> Stream (Of L.ByteString) IO ()
+           -> IO ()
+disperse inp str = void $ async $ feedChanBounded inp str
+{-# INLINE disperse #-}
+
+dispatch :: ZEnv t b -> (L.ByteString -> IO ()) -> IO ()
+dispatch ZEnv{..} f = replicateM_ nworkers $ async $ worker
+  where
+    worker :: IO ()
+    worker = do
+      lbs <- readChanBounded input
+      if L.null lbs
+        then do
+          atomically $ modifyTVar nw pred
+          writeChanBounded input lbs
+        else f lbs >> worker
+{-# INLINE dispatch #-}
+
+detect :: N.Nullable (t b) => ZEnv t b -> IO ()
+detect ZEnv{..} = void $ async $ monitor output nw
+  where
+    monitor :: N.Nullable w => ChanBounded w -> TVar Int -> IO ()
+    monitor output nw = do
+      atomically $ do
+        n <- readTVar nw
+        unless (n == 0) retry
+      writeChanBounded output N.null
+    {-# INLINE monitor #-}
+{-# INLINE detect #-}
+
+
+
+parseLines :: GlobalConf
+           -> Z.Parser (Maybe a)
            -> Stream (Of L.ByteString) IO ()
            -> Stream (Of [a]) IO ()
-parseLines z str = do
-  ZEnv{..} <- liftIO (withConf defaultGlobalConf newZEnv :: IO (ZEnv [] a))
+parseLines conf z str = do
+  env@(ZEnv{..}) <- liftIO $ withConf conf newZEnv
   liftIO $ do
-    async $ feedChanBounded input str
-    replicateM_ nworkers $ async $ worker input output nw z
-    async $ monitor output nw
+    disperse input str
+    dispatch env (labor output z)
+    detect env
   drainChanBounded output
 {-# INLINE parseLines #-}
 
-parseLinesFold :: Z.Parser (Maybe a)
+parseLinesFold :: GlobalConf
+               -> Z.Parser (Maybe a)
                -> (a -> x -> x) -> x -> (x -> b)
                -> Stream (Of L.ByteString) IO ()
                -> Stream (Of b) IO ()
-parseLinesFold parser f z g str = do
-  ZEnv{..} <- liftIO (withConf defaultGlobalConf newZEnv :: IO (ZEnv Maybe b))
+parseLinesFold conf parser f z g str = do
+  env@(ZEnv{..})  <- liftIO $ withConf conf newZEnv
   liftIO $ do
-    async $ feedChanBounded input str
-    replicateM_ nworkers $ async $ workerFold input output nw parser f z g
-    async $ monitor output nw
+    disperse input str
+    dispatch env (laborFold output parser f z g)
+    detect env
   drainChanBoundedMaybe output
 {-# INLINE parseLinesFold #-}
 
-parseLinesFoldIO :: Z.Parser (Maybe a)
+parseLinesFoldIO :: GlobalConf
+                 -> Z.Parser (Maybe a)
                  -> (a -> x -> x) -> x -> (x -> IO b)
                  -> Stream (Of L.ByteString) IO ()
                  -> Stream (Of b) IO ()
-parseLinesFoldIO parser f z g str = do
-  ZEnv{..} <- liftIO (withConf defaultGlobalConf newZEnv :: IO (ZEnv Maybe b))
+parseLinesFoldIO conf parser f z g str = do
+  env@(ZEnv{..}) <- liftIO $ withConf conf newZEnv
   liftIO $ do
-    async $ feedChanBounded input str
-    replicateM_ nworkers $ async $ workerFoldIO input output nw parser f z g
-    async $ monitor output nw
+    disperse input str
+    dispatch env (laborFoldIO output parser f z g)
+    detect env
   drainChanBoundedMaybe output
 {-# INLINE parseLinesFoldIO #-}
-
-worker :: ChanBounded L.ByteString
-       -> ChanBounded [a]
-       -> TVar Int
-       -> Z.Parser (Maybe a)
-       -> IO ()
-worker input output nw z = go
-  where
-    go = do
-      lbs <- readChanBounded input
-      if L.null lbs
-         then do
-           atomically $ modifyTVar nw pred
-           writeChanBounded input lbs
-         else labor output z lbs >> go
-{-# INLINE worker #-}
-
-workerFold :: ChanBounded L.ByteString
-           -> ChanBounded (Maybe b)
-           -> TVar Int
-           -> Z.Parser (Maybe a)
-           -> (a -> x -> x) -> x -> (x -> b)
-           -> IO ()
-workerFold input output nw parser f z g = go
-  where
-    go = do
-      lbs <- readChanBounded input
-      if L.null lbs
-         then do
-           atomically $ modifyTVar nw pred
-           writeChanBounded input lbs
-         else laborFold output parser f z g lbs >> go
-{-# INLINE workerFold #-}
-
-workerFoldIO :: ChanBounded L.ByteString
-             -> ChanBounded (Maybe b)
-             -> TVar Int
-             -> Z.Parser (Maybe a)
-             -> (a -> x -> x) -> x -> (x -> IO b)
-             -> IO ()
-workerFoldIO input output nw parser f z g = go
-  where
-    go = do
-      lbs <- readChanBounded input
-      if L.null lbs
-         then do
-           atomically $ modifyTVar nw pred
-           writeChanBounded input lbs
-         else laborFoldIO output parser f z g lbs >> go
-{-# INLINE workerFoldIO #-}
 
 labor :: ChanBounded ([a])
       -> Z.Parser (Maybe a)
@@ -246,10 +237,3 @@ accZeptoFold parser f bs acc =
     _ -> acc
 {-# INLINE accZeptoFold #-}
 
-monitor :: N.Nullable w => ChanBounded w -> TVar Int -> IO ()
-monitor output nw = do
-  atomically $ do
-    n <- readTVar nw
-    unless (n == 0) retry
-  writeChanBounded output N.null
-{-# INLINE monitor #-}

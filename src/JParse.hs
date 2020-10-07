@@ -15,17 +15,17 @@ as possible, extracting only the contents of the string associated with a
 fixed __query-key__ and skipping all non-matching key-value pairs.
 
 "JParse" and its submodules define high-level functions to be used as
-components in a larger "Streaming"-based pipeline. There are currently three
+components in a larger "Streaming"-based pipeline. There are currently two
 primary sub-modules:
 
 * "JParse.Zepto" defines high-level functions for applying a parser to a
 monadic 'Data.ByteString.Streaming.ByteString' containing one complete JSON
-object per line, returning the results of each successful parse as a Stream
-(from "Streaming") of values.
+object per line, returning the results of each successful parse as a 'Streaming.Stream'
+of values.
 
 * "JParse.Attoparsec" defines high-level functions for applying a parser to a
 monadic 'Data.ByteString.Streaming.ByteString' containg a stream of JSON objects with more flexible
-formatting constraings, either returning the successful parse results as a
+formatting constraints, either returning the successful parse results as a
 Stream, or outputting them to stdout one-per-line
 
 
@@ -36,19 +36,19 @@ are suitable for JSON data conforming to different format constraints, and
 offer different performance.
 
 When the input JSON stream is known to contain exactly one complete JSON
-object per line, it is possible to use the "JParse.Zepto"
-pipeline components, which operate in \"Line-Mode\", using parallel threads to process multiple
-batches of JSON objects independently; the parser-library these functions use
-is the highly optimized "JParse.Parser.Zepto" library, which achieves its efficiency
-by relying on the guarantee that newline characters are consistent end-of-object markers
-for the input in question. For data that is formatted in this way, Line-Mode parsing
-is by far the fastest parsing strategy.
+object per line, the Line-Mode module JParse.Zepto" can be used to process
+multiple batches of JSON objects independently  using parallel threads. For
+data that is formatted in this way, Line-Mode parsing is by far the fastest
+parsing strategy.
 
-If the input stream is formatted differently, such as if the JSON objects are \'prettified\'
-by using object-internal newlines, or if more than one object can occur per line, Line-Mode
-parsing is unsuitable. For such cases, \"Block-Mode\" parsing using "JParse.Attoparsec" is
-still possible, but is unable to use parallel computation strategies due to the lack of an
-end-of-object marker.
+Alternatively, \"Block-Mode\" parsing using "JParse.Attoparsec" is able to
+perform the same task with reduced efficiency but much higher flexibility
+in the input format; the input JSON data stream can contain arbitrary valid
+whitespace sequences within and between JSON objects without issue.
+
+If \"Line-Mode\" parsing is suitable for any given input, it out-performs \"Block-Mode\"
+noticeably, but its format requirements may be too restrictive for some use cases that \"Block-Mode\"
+is nevertheless able to operate within.
 
 -}
 module JParse

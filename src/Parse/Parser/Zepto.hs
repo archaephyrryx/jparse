@@ -18,12 +18,14 @@ module Parse.Parser.Zepto
   , string
   , stringCI
   , take
-  , skip
   , takeWhile
+  , skip
   , skipWhile
   , skipEndQuote
   , peek
+  , peekAll
   , pop
+  , popAll
   ) where
 
 import Control.Applicative
@@ -241,6 +243,16 @@ skipEndQuote = do
     Nothing -> fail "skipEndQuote"
     Just !s -> put $ S s
 {-# INLINE skipEndQuote #-}
+
+-- | Returns entirety of (remaining) input as a strict 'ByteString' without consuming
+peekAll :: Parser ByteString
+peekAll = gets input
+{-# INLINE peekAll #-}
+
+-- | Consumes and returns entirety of (remaining) input as a strict 'ByteString'
+popAll :: Parser ByteString
+popAll = gets input <* put (S B.empty)
+{-# INLINE popAll #-}
 
 -- | Indicate whether the end of the input has been reached.
 atEnd :: Parser Bool

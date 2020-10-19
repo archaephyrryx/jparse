@@ -4,13 +4,13 @@
 module JParse.Internal (strToZepto, strToAtto, strToAtto') where
 
 import           Control.Monad (mzero)
-import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import           Data.ByteString (ByteString)
 import           Data.ByteString.Builder (Builder)
 
 import Parse
+import qualified Parse.Parser.Attoparsec as A
 import qualified Parse.ReadAlt as R
 
 import qualified Parse.MatchZepto as Zep
@@ -65,7 +65,7 @@ qkey = T.encodeUtf8 . T.pack
 seekInObj :: [ParseClass] -> A.Parser (Maybe Builder)
 seekInObj cs = do
     symbol LBrace
-    A.anyWord8 >>= \case
+    A.pop >>= \case
         RBrace -> pure Nothing
         Quote -> getStringValue cs
         _    -> mzero
@@ -75,7 +75,7 @@ seekInObj cs = do
 seekInObj' :: [ParseClass] -> A.Parser (Maybe Builder)
 seekInObj' cs = do
     symbol LBrace
-    A.anyWord8 >>= \case
+    A.pop >>= \case
         RBrace -> pure Nothing
         Quote -> getStringValue' cs
         _    -> mzero

@@ -80,7 +80,7 @@ blockParsed parser src = loop $ AS.parsed parser src
 -- Recurses until end of pure input is reached and retrieves additonal ByteString
 -- chunks from the source each pass, until parser yields Done or Fail result.
 --
--- Designed around 'seekInObj', which has the property that as soon as a positive or
+-- Designed around 'strToAtto', which has the property that as soon as a positive or
 -- negative result has been decided for each JSON object encountered, the remainder of
 -- that JSON object is skipped.
 parseS :: (MonadIO m, MonadFail m)
@@ -94,7 +94,7 @@ parseS src parser !bs = loop src $ parser bs
       A.Done leftover result -> do
         doJust S.yield result
         let more = trim leftover
-        if not $ B.null more 
+        if not $ B.null more
           then loop src $! parser more
           else case src of
             Nothing         -> pure ()

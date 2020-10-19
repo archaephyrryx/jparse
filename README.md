@@ -7,7 +7,7 @@ Unlike full-feature JSON parsing libraries, **jparse** avoids converting input i
 Approach
 ========
 
-Each JSON object is parsed in a single pass with minimal[1] backtracking, matching every key encountered against the constant **query-key** and efficiently skipping to the next key upon non-match, repeating this process until the object terminates or a match is found. Upon encountering a matching key[2], the associated value is parsed and returned, and the trailing remainder of the JSON object is skipped as efficiently as possible. This process is repeated for each JSON object, transforming a stream of unparsed JSON into a stream of extracted values. 
+Each JSON object is parsed in a single pass with minimal[1] backtracking, matching every key encountered against the constant **query-key** and efficiently skipping to the next key upon non-match, repeating this process until the object terminates or a match is found. Upon encountering a matching key[2], the associated value is parsed and returned, and the trailing remainder of the JSON object is skipped as efficiently as possible. This process is repeated for each JSON object, transforming a stream of unparsed JSON into a stream of extracted values.
 
 The division of functionality between the library and executable modules has not yet been fully tuned, and therefore any project importing the respective library may find some desired features missing if they happen to be defined in modules specific to the executable. Please contact the maintainer of this project regarding any desired features you wish to be exposed in the library rather than the executable.
 

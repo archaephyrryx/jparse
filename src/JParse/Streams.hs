@@ -14,5 +14,5 @@ type LBStream m r = Stream (Of L.ByteString) m r
 -- | Convert a (monadic) 'BS.ByteString' into a 'Stream' of (lazy) 'L.ByteString'
 -- containing batches of lines whose cardinality is the global constant 'nLines'
 lazyLineSplit :: MonadIO m => Int -> BS.ByteString m () -> LBStream m ()
-lazyLineSplit nLines = mapped BS.toLazy . BS8.lineSplit nLines
+lazyLineSplit nLines = mappedPost BS.toLazy . BS8.lineSplit nLines
 {-# INLINE lazyLineSplit #-}

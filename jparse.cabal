@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dc706cb64ed74fe982772e447eacba95d879ee9d037cfbf8d12aef863b246ef4
+-- hash: 63c66ed9f404d3c1a0dba04cec3ee196682f552e293e14f353c4654f44d17c50
 
 name:           jparse
 version:        0.1.0.0
@@ -41,6 +41,7 @@ library
       JParse.Global
       JParse.Helper
       JParse.Internal
+      JParse.Pipeline
       JParse.Streams
       JParse.Zepto
       JParse.Zepto.Internal

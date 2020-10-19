@@ -31,19 +31,13 @@ Stream, or outputting them to stdout one-per-line
 
 == Line-mode ("JParse.Zepto") and Block-mode ("JParse.Attoparsec")
 
-While "JParse.Zepto" and "JParse.Attoparsec" offer similar utility, they
-are suitable for JSON data conforming to different format constraints, and
-offer different performance.
+\"Line-Mode\" is a JSON parsing strategy designed and optmized for input streams
+known to contain exactly one complete JSON
+object per line. The module "JParse.Zepto", which uses this strategy, is able to process
+multiple batches of JSON objects in parallel.
 
-When the input JSON stream is known to contain exactly one complete JSON
-object per line, the Line-Mode module JParse.Zepto" can be used to process
-multiple batches of JSON objects independently  using parallel threads. For
-data that is formatted in this way, Line-Mode parsing is by far the fastest
-parsing strategy.
-
-Alternatively, \"Block-Mode\" parsing using "JParse.Attoparsec" is able to
-perform the same task with reduced efficiency but much higher flexibility
-in the input format; the input JSON data stream can contain arbitrary valid
+\"Block-Mode\" is an alternate JSON parsing strategy that is more flexible with regard to input formatting.
+The module "JParse.Attoparsec", which uses this strategy, is able to process JSON data streams containing arbitrary valid
 whitespace sequences within and between JSON objects without issue.
 
 If \"Line-Mode\" parsing is suitable for any given input, it out-performs \"Block-Mode\"

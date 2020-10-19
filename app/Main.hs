@@ -48,7 +48,7 @@ blockParse = runParses . strToAtto'
 {-# INLINE blockParse #-}
 
 blockParse' :: String -> BS.ByteString IO () -> IO ()
-blockParse' = runParsed . strToAtto' 
+blockParse' = runParsed . strToAtto'
 {-# INLINE blockParse' #-}
 
 lineParse :: GlobalConf -> String -> BS.ByteString IO () -> IO ()

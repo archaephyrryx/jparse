@@ -26,6 +26,9 @@ import Streaming.Internal (Stream(..))
 
 import JParse.Global
 import JParse.Channels
+import JParse.Pipeline
+
+import qualified Data.Nullable as N
 
 -- Concurrency mode
 import Control.Concurrent
@@ -52,3 +55,21 @@ newZEnv = do
   input  <- lift $ newChanBounded workLimit
   output <- lift $ newChanBounded workLimit
   return ZEnv{..}
+
+-- | Creates @n@ worker threads to read from an input channel and perform an IO computation
+-- over multi-line lazy bytestrings until an empty 'L.ByteString' is encountered.
+--
+-- The IO computation in question should, in practice, be a partially-applied function over
+-- a 'Z.Parser' and the 'output' @'ChanBounded' (t b)@ inside of the argument 'ZEnv', that
+-- runs the parser over each line and writes the processed results to the output channel.
+dispatchZEnv :: ZEnv t b -> (L.ByteString -> IO ()) -> IO ()
+dispatchZEnv ZEnv{..} = dispatch nworkers input nw
+{-# INLINE dispatchZEnv #-}
+
+-- | Creates a thread that writes a sentinel value of @'N.null'@ to the output channel
+-- to indicate end-of-output after waiting for all worker threads to signal inactivity.
+detectZEnv :: N.Nullable (t b) => ZEnv t b -> IO ()
+detectZEnv ZEnv{..} = detect output nw
+{-# INLINE detectZEnv #-}
+
+

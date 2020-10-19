@@ -22,7 +22,7 @@ module Data.Nullable where
 -- In particular, @instance Nullable [a]@ and @instance Nullable (Maybe a)@
 -- are defined without @Eq a@ constraints to allow generic comparison to 'Nil'
 -- and 'Nothing' as their respective 'null' values.
-class Nullable w where 
+class Nullable w where
   -- | Test against \"empty\" or \"null\" value
   isNull :: w -> Bool
   -- | \"empty\" or \"null\" value

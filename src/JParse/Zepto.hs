@@ -8,7 +8,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-{-| 
+{-|
 Module      : JParse.Zepto
 Description : Concurrent stream-parsing in Line-Mode
 Copyright   : (c) Peter Duchovni, 2020
@@ -68,6 +68,7 @@ import JParse.Helper
 import JParse.Channels
 import JParse.Zepto.Internal
 
+import JParse.Pipeline
 import JParse.Streams (lazyLineSplit)
 import JParse.Global
 
@@ -114,49 +115,6 @@ lineParseFoldIO :: GlobalConf -- ^ Set of global constants for behavior tuning
 lineParseFoldIO conf parser f z g mbs = parseLinesFoldIO conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFoldIO #-}
 
-
--- | Spawns a thread that writes the contents of a 'Stream' of lazy 'L.ByteString' to a 'ChanBounded'
--- of the same type.
-writeBatches :: ChanBounded L.ByteString
-             -> Stream (Of L.ByteString) IO ()
-             -> IO ()
-writeBatches inp str = void $ async $ feedChanBounded inp str
-{-# INLINE writeBatches #-}
-
--- | Creates @n@ worker threads to read from an input channel and perform an IO computation
--- over multi-line lazy bytestrings until an empty 'L.ByteString' is encountered.
---
--- The IO computation in question should, in practice, be a partially-applied function over
--- a 'Z.Parser' and the 'output' @'ChanBounded' (t b)@ inside of the argument 'ZEnv' that
--- runs the parser over each line and writes the processed results to the output channel.
-dispatch :: ZEnv t b -> (L.ByteString -> IO ()) -> IO ()
-dispatch ZEnv{..} f = replicateM_ nworkers $ async $ worker
-  where
-    worker :: IO ()
-    worker = do
-      lbs <- readChanBounded input
-      if L.null lbs
-        then do
-          atomically $ modifyTVar nw pred
-          writeChanBounded input lbs
-        else f lbs >> worker
-{-# INLINE dispatch #-}
-
--- | Creates a thread that writes a sentinel value of @'N.null'@ to the output channel
--- to indicate end-of-output after waiting for all worker threads to signal inactivity.
-detect :: N.Nullable (t b) => ZEnv t b -> IO ()
-detect ZEnv{..} = void $ async $ monitor output nw
-  where
-    monitor :: N.Nullable w => ChanBounded w -> TVar Int -> IO ()
-    monitor output nw = do
-      atomically $ do
-        n <- readTVar nw
-        unless (n == 0) retry
-      writeChanBounded output N.null
-    {-# INLINE monitor #-}
-{-# INLINE detect #-}
-
-
 -- | Applies a 'Z.Parser' to each line in a 'Stream' of 'L.ByteString' \"batches\" of JSON data,
 -- returning a 'Stream' consisting of lists of the successful parse results for each batch.
 parseLines :: GlobalConf
@@ -167,10 +125,12 @@ parseLines conf z str = do
   env@(ZEnv{..}) <- liftIO $ withConf conf newZEnv
   liftIO $ do
     writeBatches input str
-    dispatch env (labor output z)
-    detect env
+    dispatchZEnv env (labor output z)
+    detectZEnv env
   drainChanBounded output
 {-# INLINE parseLines #-}
+
+
 
 -- | Applies a 'Z.Parser' to each line in a 'Stream' of 'L.ByteString' \"batches\" of JSON data,
 -- returning a 'Stream' consisting of finalized values accumulated using a right-associative fold.
@@ -183,8 +143,8 @@ parseLinesFold conf parser f z g str = do
   env@(ZEnv{..})  <- liftIO $ withConf conf newZEnv
   liftIO $ do
     writeBatches input str
-    dispatch env (laborFold output parser f z g)
-    detect env
+    dispatchZEnv env (laborFold output parser f z g)
+    detectZEnv env
   drainChanBoundedMaybe output
 {-# INLINE parseLinesFold #-}
 
@@ -200,8 +160,8 @@ parseLinesFoldIO conf parser f z g str = do
   env@(ZEnv{..}) <- liftIO $ withConf conf newZEnv
   liftIO $ do
     writeBatches input str
-    dispatch env (laborFoldIO output parser f z g)
-    detect env
+    dispatchZEnv env (laborFoldIO output parser f z g)
+    detectZEnv env
   drainChanBoundedMaybe output
 {-# INLINE parseLinesFoldIO #-}
 
@@ -230,8 +190,8 @@ laborFold :: ChanBounded (Maybe b)
           -> IO ()
 laborFold output parser f z g lbs = do
   let xs = refold unconsLine (accZeptoFold parser f) z lbs
-  let !ys = Just $! g xs
-  writeChanBounded output ys
+      !ys = g xs
+  writeChanBounded output $! Just ys
 {-# INLINE laborFold #-}
 
 -- | Function passed to 'dispatch' in 'parseLinesFoldIO'

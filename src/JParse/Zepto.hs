@@ -50,7 +50,7 @@ outperforms equivalent operations using other JSON-stream parsers.
 module JParse.Zepto (lineParseStream, lineParseFold, lineParseFoldIO) where
 
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Streaming as BS
+import qualified Data.ByteString.Streaming.Compat as BS
 
 import Control.Monad (unless)
 import Streaming
@@ -69,7 +69,7 @@ import JParse.Zepto.Internal
 -- lists of the successful parse results for each individual batch.
 lineParseStream :: GlobalConf -- ^ Set of global constants for behavior tuning
                 -> Z.Parser (Maybe a)-- ^ Parser to run over each line
-                -> BS.ByteString IO () -- ^ Input JSON-stream
+                -> BS.ByteStream IO () -- ^ Input JSON-stream
                 -> Stream (Of [a]) IO ()
 lineParseStream conf parser mbs = parseLines conf parser $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseStream #-}
@@ -82,7 +82,7 @@ lineParseFold :: GlobalConf -- ^ Set of global constants for behavior tuning
               -> (a -> x -> x) -- ^ Accumulation function
               -> x -- ^ Initial value of accumulator
               -> (x -> b) -- ^ Finalization function to run over final accumulator value per-batch
-              -> BS.ByteString IO () -- ^ Input JSON-stream
+              -> BS.ByteStream IO () -- ^ Input JSON-stream
               -> Stream (Of b) IO ()
 lineParseFold conf parser f z g mbs = parseLinesFold conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFold #-}
@@ -95,7 +95,7 @@ lineParseFoldIO :: GlobalConf -- ^ Set of global constants for behavior tuning
                 -> (a -> x -> x) -- ^ Accumulation function
                 -> x -- ^ Initial value of accumulator
                 -> (x -> IO b) -- ^ Monadic finalization function to run over final accumulator value per-batch
-                -> BS.ByteString IO () -- ^ Input JSON-stream
+                -> BS.ByteStream IO () -- ^ Input JSON-stream
                 -> Stream (Of b) IO ()
 lineParseFoldIO conf parser f z g mbs = parseLinesFoldIO conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFoldIO #-}

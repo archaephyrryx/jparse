@@ -4,7 +4,7 @@
 module Main (main) where
 
 import qualified Streaming.Prelude as S
-import qualified Data.ByteString.Streaming as BS
+import qualified Data.ByteString.Streaming.Compat as BS
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Builder as D
@@ -36,17 +36,17 @@ main = do
     LineMode  -> lineParse conf query mbs
     BlockMode -> blockParse query mbs
 
-blockParse :: String -> BS.ByteString IO () -> IO ()
+blockParse :: String -> BS.ByteStream IO () -> IO ()
 blockParse = runParses . strToAtto'
 {-# INLINE blockParse #-}
 
 {-
-blockParse' :: String -> BS.ByteString IO () -> IO ()
+blockParse' :: String -> BS.ByteStream IO () -> IO ()
 blockParse' = runParsed . strToAtto'
 {-# INLINE blockParse' #-}
 -}
 
-lineParse :: GlobalConf -> String -> BS.ByteString IO () -> IO ()
+lineParse :: GlobalConf -> String -> BS.ByteStream IO () -> IO ()
 lineParse conf s mbs =
   S.mapM_ B8.putStr $
     lineParseFold conf (strToZepto s) concatLine mempty buildLong $ mbs

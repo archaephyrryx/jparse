@@ -5,19 +5,18 @@ module JParse.Channels where
 
 import Prelude hiding (null)
 
+import qualified Control.Concurrent.BoundedChan as BC
 import qualified Data.ByteString as B
-
-import Data.ByteString.Streaming.Internal (ByteString(..))
-import qualified Data.ByteString.Streaming as BS
-
-import Streaming
 import qualified Streaming.Prelude as S
-import Streaming.Internal (Stream(..))
 
 import Control.Concurrent
-import qualified Control.Concurrent.BoundedChan as BC
 import Control.Concurrent.BoundedChan (BoundedChan, newBoundedChan)
+import Streaming
+import Streaming.Internal (Stream(..))
 
+import qualified Data.ByteString.Streaming.Compat as BS
+
+import Data.ByteString.Streaming.Compat.Type
 import Data.Nullable
 
 -- | Type alias to preserve abstract implementation
@@ -37,7 +36,6 @@ writeChanBounded = BC.writeChan
 readChanBounded :: ChanBounded a -> IO a
 readChanBounded = BC.readChan
 {-# INLINE readChanBounded #-}
-
 
 -- | Feed values from a 'Stream' into a 'Chan', writing 'null' once the stream is exhausted
 --
@@ -139,7 +137,7 @@ drainChanBoundedMaybe cb = go
 {-# INLINE drainChanBoundedMaybe #-}
 
 -- | Feed a (monadic) 'BS.ByteString' to a 'ChanBounded B.ByteString' by incrementally writing each chunk
-writeBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteString m r -> m ()
+writeBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteStream m r -> m ()
 writeBS cb = go
   where
     go = \case
@@ -149,7 +147,7 @@ writeBS cb = go
 {-# INLINE writeBS #-}
 
 -- | Extract a (monadic) 'BS.ByteString' from a 'ChanBounded' 'B.ByteString' populated via 'writeBS' or similar
-readBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteString m ()
+readBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteStream m ()
 readBS cb = go
   where
     go = Go $ do

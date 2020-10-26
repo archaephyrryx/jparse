@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63c66ed9f404d3c1a0dba04cec3ee196682f552e293e14f353c4654f44d17c50
+-- hash: 0b695486bce53165dc7c102648645e18d1980845df164d2c78a1f79ae17ac3f1
 
 name:           jparse
 version:        0.1.0.0
@@ -30,6 +30,10 @@ library
       Data.ByteString.Build
       Data.ByteString.Seek
       Data.ByteString.Split
+      Data.ByteString.Streaming.Compat
+      Data.ByteString.Streaming.Compat.Char8
+      Data.ByteString.Streaming.Compat.Internal
+      Data.ByteString.Streaming.Compat.Type
       Data.ByteString.Streaming.Gates
       Data.ByteString.Streaming.Sources
       Data.Nullable

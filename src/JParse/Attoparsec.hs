@@ -51,16 +51,18 @@ module JParse.Attoparsec
   , runParsed
   ) where
 
-import JParse.Attoparsec.Streaming
-import JParse.Attoparsec.Common
 
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.ByteString.Streaming as BS
 import qualified Streaming.Prelude as S
 
 import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString.Builder (Builder)
 import Streaming (Stream, Of)
+
+import qualified Data.ByteString.Streaming.Compat as BS
+
+import JParse.Attoparsec.Streaming
+import JParse.Attoparsec.Common
 
 -- | Prints each 'D.Builder' in a 'Stream' to stdout with trailing newlines
 putLnBuilderS :: MonadIO m => Stream (Of Builder) m () -> m ()
@@ -73,7 +75,7 @@ mapParses :: A.Parser (Maybe Builder) -- ^ Parser to be run
           -> (Builder -> x -> x) -- ^ Accumulation function
           -> x -- ^ Initial value of accumulator
           -> (x -> a) -- ^ Finalization function to run over final accumulator value
-          -> BS.ByteString IO () -- ^ Input monadic 'BS.ByteString'
+          -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteString'
           -> IO a -- ^ Finalized result
 mapParses parser f z g src =
   let str = blockParseStream (A.parse parser) src
@@ -82,7 +84,7 @@ mapParses parser f z g src =
 -- | Runs 'parseS' using a given parser over arbitrary upstream
 -- and outputs the results using 'putLnBuilderS'
 runParses :: A.Parser (Maybe Builder)
-          -> BS.ByteString IO ()
+          -> BS.ByteStream IO ()
           -> IO ()
 runParses parser src = putLnBuilderS $ blockParseStream (A.parse parser) src
 {-# INLINE runParses #-}
@@ -90,7 +92,7 @@ runParses parser src = putLnBuilderS $ blockParseStream (A.parse parser) src
 -- | Runs 'blockParsed' using a given parser over arbitrary upstream
 -- and outputs the results using 'putLnBuilderS'
 runParsed :: A.Parser (Maybe Builder)
-          -> BS.ByteString IO ()
+          -> BS.ByteStream IO ()
           -> IO ()
 runParsed parser src = putLnBuilderS $ blockParsed parser src
 {-# INLINE runParsed #-}

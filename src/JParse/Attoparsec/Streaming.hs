@@ -7,16 +7,15 @@
 
 module JParse.Attoparsec.Streaming where
 
+import qualified Data.Attoparsec.ByteString as A
+import qualified Data.Attoparsec.ByteString.Streaming as AS
+import qualified Data.ByteString as B
 import qualified Streaming.Prelude as S
+
 import           Streaming
 import           Streaming.Internal (Stream(..))
 
-import qualified Data.ByteString.Streaming as BS
-import qualified Data.Attoparsec.ByteString.Streaming as AS
-
-import qualified Data.Attoparsec.ByteString as A
-
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Streaming.Compat as BS
 
 import JParse.Attoparsec.Common
 import JParse.Helper (cond, doJust)
@@ -25,7 +24,7 @@ import JParse.Helper (cond, doJust)
 -- and return stream of unwrapped 'Just' results
 blockParseStream :: (MonadIO m, MonadFail m)
                  => (B.ByteString -> A.Result (Maybe a)) -- ^ parse function
-                 -> BS.ByteString m () -- ^ input monadic bytestring
+                 -> BS.ByteStream m () -- ^ input monadic bytestring
                  -> Stream (Of a) m () -- ^ Stream of unwrapped @Just@ values
 blockParseStream parser src = runParseS $ src
   where
@@ -44,7 +43,7 @@ blockParseStream parser src = runParseS $ src
 
 -- | Run 'AS.parsed' using a given parser over arbitrary upstream and
 -- return stream of unwrapped 'Just' results
-blockParsed :: A.Parser (Maybe a) -> BS.ByteString IO r -> Stream (Of a) IO ()
+blockParsed :: A.Parser (Maybe a) -> BS.ByteStream IO r -> Stream (Of a) IO ()
 blockParsed parser src = loop $ AS.parsed parser src
   where
     loop str = case str of
@@ -68,7 +67,7 @@ blockParsed parser src = loop $ AS.parsed parser src
 -- negative result has been decided for each JSON object encountered, the remainder of
 -- that JSON object is skipped.
 parseS :: (MonadIO m, MonadFail m)
-       => Maybe (B.ByteString, BS.ByteString m ()) -- ^ unconsChunk of source monadic bytestring
+       => Maybe (B.ByteString, BS.ByteStream m ()) -- ^ unconsChunk of source monadic bytestring
        -> (B.ByteString -> A.Result (Maybe a)) -- ^ parser
        -> B.ByteString -- ^ initial chunk
        -> Stream (Of a) m () -- ^ output stream of parsed results

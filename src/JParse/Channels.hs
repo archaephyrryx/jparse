@@ -5,8 +5,6 @@ module JParse.Channels where
 
 import Prelude hiding (null)
 
-import Control.Monad.IO.Class (MonadIO(..))
-
 import qualified Data.ByteString as B
 
 import Data.ByteString.Streaming.Internal (ByteString(..))
@@ -17,7 +15,6 @@ import qualified Streaming.Prelude as S
 import Streaming.Internal (Stream(..))
 
 import Control.Concurrent
-import Control.Concurrent.Chan
 import qualified Control.Concurrent.BoundedChan as BC
 import Control.Concurrent.BoundedChan (BoundedChan, newBoundedChan)
 

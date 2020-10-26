@@ -49,36 +49,21 @@ outperforms equivalent operations using other JSON-stream parsers.
 
 module JParse.Zepto (lineParseStream, lineParseFold, lineParseFoldIO) where
 
-import Streaming
-import qualified Streaming.Prelude as S
-
-import Data.ByteString (ByteString)
-import Data.ByteString.Builder (Builder)
-
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Builder as D
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming as BS
 
-import           Data.ByteString.Split (unconsLine)
+import Control.Monad (unless)
+import Streaming
 
 import qualified Parse.Parser.Zepto as Z
 
-import JParse.Helper
+import Data.ByteString.Split (unconsLine)
 import JParse.Channels
-import JParse.Zepto.Internal
-
+import JParse.Global
+import JParse.Helper
 import JParse.Pipeline
 import JParse.Streams (lazyLineSplit)
-import JParse.Global
-
--- Concurrency mode
-import Control.Concurrent.Async
-import Control.Concurrent.STM
-import Control.Monad (replicateM_, unless)
-
-import qualified Data.Nullable as N
-
+import JParse.Zepto.Internal
 
 -- | Parses a monadic bytestring that holds exactly one JSON object per line, returning a 'Stream' of
 -- lists of the successful parse results for each individual batch.

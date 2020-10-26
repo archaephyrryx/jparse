@@ -6,7 +6,6 @@ module Data.ByteString.Build where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Builder as D
 import qualified Data.ByteString.Builder.Extra as D
 
 import Data.ByteString.Builder (Builder)

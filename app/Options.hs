@@ -5,10 +5,8 @@
 
 module Options where
 
-import Data.ByteString (ByteString)
 import Options.Applicative
 import JParse.Global
-
 
 type Qstring = String
 

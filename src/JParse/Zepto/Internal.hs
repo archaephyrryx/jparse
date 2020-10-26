@@ -7,35 +7,17 @@
 
 module JParse.Zepto.Internal where
 
-import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader (ReaderT(..), ask)
+import Control.Concurrent.STM
 
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-
-import Data.ByteString.Builder (Builder)
-import qualified Data.ByteString.Builder as D
-import qualified Data.ByteString.Builder.Extra as D
-
-import Data.ByteString.Streaming.Internal (ByteString(..))
-import qualified Data.ByteString.Streaming as BS
-
-import Streaming
-import qualified Streaming.Prelude as S
-import Streaming.Internal (Stream(..))
 
 import JParse.Global
 import JParse.Channels
 import JParse.Pipeline
 
 import qualified Data.Nullable as N
-
--- Concurrency mode
-import Control.Concurrent
-import Control.Concurrent.Async
-import Control.Concurrent.Chan
-import Control.Concurrent.STM
-import Control.Concurrent.STM.TVar
 
 -- | set of common synchronization values for concurrent linemode
 data ZEnv f a
@@ -71,5 +53,3 @@ dispatchZEnv ZEnv{..} = dispatch nworkers input nw
 detectZEnv :: N.Nullable (t b) => ZEnv t b -> IO ()
 detectZEnv ZEnv{..} = detect output nw
 {-# INLINE detectZEnv #-}
-
-

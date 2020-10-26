@@ -4,10 +4,9 @@ module Data.ByteString.Streaming.Gates (IsGated, IsZipped, generate) where
 
 import Prelude hiding (unzip)
 
-import Control.Monad.Trans.Reader (ReaderT(..), ask, asks)
+import Control.Monad.Trans.Reader (ReaderT(..), asks)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Resource (runResourceT)
-import Control.Monad.IO.Class (MonadIO(..))
 
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Streaming as BS
@@ -50,8 +49,8 @@ generate :: IsGated  -- ^ Indicates whether \'gating\' is desired (Alias for 'Bo
 generate _     False  Nothing   = return $ getStdin
 generate False True   Nothing   = return $ unzip getStdin
 generate True  True   Nothing   = produce $ \_ outgate -> do
-  async $ writeBS outgate $ unzip getStdin
-  return $ readBS outgate
+  link =<< async (writeBS outgate $ unzip getStdin)
+  return (readBS outgate)
 generate False zipped (Just !u) = produce $ \_ outgate -> do
   link =<< async (runResourceT $ writeBS outgate . condUnzip zipped =<< getHttp u)
   return $ readBS outgate

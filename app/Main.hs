@@ -5,18 +5,11 @@ module Main (main) where
 
 import qualified Streaming.Prelude as S
 import qualified Data.ByteString.Streaming as BS
-import qualified Data.ByteString.Streaming.Char8 as BS8 (stdin)
 
-import qualified Data.Attoparsec.ByteString as A (parse)
-
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Builder as D
-import System.IO (stdout)
 
-import Parse (mapClass, ParseClass)
 import JParse
-import JParse.Attoparsec
 import JParse.Zepto
 import Options
 
@@ -47,9 +40,11 @@ blockParse :: String -> BS.ByteString IO () -> IO ()
 blockParse = runParses . strToAtto'
 {-# INLINE blockParse #-}
 
+{-
 blockParse' :: String -> BS.ByteString IO () -> IO ()
 blockParse' = runParsed . strToAtto'
 {-# INLINE blockParse' #-}
+-}
 
 lineParse :: GlobalConf -> String -> BS.ByteString IO () -> IO ()
 lineParse conf s mbs =

@@ -12,27 +12,11 @@ import           Streaming
 import           Streaming.Internal (Stream(..))
 
 import qualified Data.ByteString.Streaming as BS
-import qualified Data.ByteString.Streaming.Char8 as BS8
-import           Data.ByteString.Streaming.Internal (ByteString(..))
 import qualified Data.Attoparsec.ByteString.Streaming as AS
 
-import           Control.Monad.IO.Class (MonadIO(..))
-import           Control.Monad.Trans.Class (lift)
-import           Control.Monad (void)
-
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (isSpace_w8)
 
 import qualified Data.ByteString as B
-
-import qualified Data.ByteString.Builder as D
-import           Data.ByteString.Builder (Builder)
-
-import           Data.Maybe (isNothing)
-
-import           System.IO (stdout)
-
-import Data.Void (Void)
 
 import JParse.Attoparsec.Common
 import JParse.Helper (cond, doJust)
@@ -53,8 +37,8 @@ blockParseStream parser src = runParseS $ src
           if B.null bs'
             then runParseS rest
             else do
-              src <- lift (BS.unconsChunk rest)
-              parseS src parser bs'
+              src' <- lift (BS.unconsChunk rest)
+              parseS src' parser bs'
         _       -> pure ()
 {-# INLINE blockParseStream #-}
 
@@ -88,7 +72,7 @@ parseS :: (MonadIO m, MonadFail m)
        -> (B.ByteString -> A.Result (Maybe a)) -- ^ parser
        -> B.ByteString -- ^ initial chunk
        -> Stream (Of a) m () -- ^ output stream of parsed results
-parseS src parser !bs = loop src $ parser bs
+parseS unSrc parser !bs = loop unSrc $ parser bs
   where
     loop src res = case res of
       A.Done leftover result -> do
@@ -98,15 +82,14 @@ parseS src parser !bs = loop src $ parser bs
           then loop src $! parser more
           else case src of
             Nothing         -> pure ()
-            Just (bs, rest) -> do
-              let bs' = trim bs
+            Just (bs', rest) -> do
               src' <- lift $ BS.unconsChunk rest
-              loop src' $! parser bs'
+              loop src' $! parser $! trim bs'
       A.Partial cont ->
         case src of
           Nothing -> loop Nothing $! cont B.empty
-          Just (bs, rest) -> do
+          Just (bs', rest) -> do
             src' <- lift $ BS.unconsChunk rest
-            loop src' $ cond B.null (const res) cont $! trim bs
+            loop src' $ cond B.null (const res) cont $! trim bs'
       A.Fail i ctx e -> fail $ show (i, ctx, e)
 {-# INLINE parseS #-}

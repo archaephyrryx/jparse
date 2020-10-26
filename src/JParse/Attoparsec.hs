@@ -6,15 +6,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-|
-Module      : JParse.Zepto
+Module      : JParse.Attoparsec
 Description : Single-threaded stream-parsing in Block-Mode
 Copyright   : (c) Peter Duchovni, 2020
 License     : BSD-3
 Maintainer  : caufeminecraft+github@gmail.com
 
-Block-Mode stream-parsers to be used when JSON input is not strictly one-per-line
-(i.e. individual objects span multiple lines or multiple objects appear on the same line),
-or when the input lines may be too long to be reasonably read into memory.
+This module provides \"Block-Mode\" stream-parsers to be used when JSON input
+is not strictly one-per-line (i.e. individual objects span multiple lines or
+multiple objects appear on the same line), or when the input lines may be too
+long to be reasonably read into memory.
 
 The top-level functions 'mapParses', 'runParses', and 'runParsed' are all \"drivers\" for
 stream-parsers, and perform IO computations rather than returning their output streams.
@@ -28,7 +29,7 @@ module. In order to actually perform the desired bulk-extraction of values assoc
 the parser combinator to be passed in to any of these functions should be one of
 
 @
-'JParse.Internal.strToAtto (key :: String)
+'JParse.Internal.strToAtto' (key :: String)
 @
 
 or
@@ -54,7 +55,6 @@ import JParse.Attoparsec.Streaming
 import JParse.Attoparsec.Common
 
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Streaming as BS
 import qualified Streaming.Prelude as S
 

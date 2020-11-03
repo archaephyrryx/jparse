@@ -19,7 +19,7 @@ if_ :: Bool -- ^ predicate value
 if_ p x y = if p then x else y
 {-# INLINE if_ #-}
 
--- | Variant of 'if_' that takes True-value and False-value arguments before predicate value.
+-- | Variant of 'if_' that takes True-branch and False-branch arguments before predicate value.
 fi :: a -- ^ value if predicate is 'True'
    -> a -- ^ value if predicate is 'False'
    -> Bool -- ^ predicate value

@@ -5,6 +5,10 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
+{-| Internal module that defines a data type 'ZEnv' containing
+    an input and output channel and a semaphore for monitoring
+    the activity of worker threads.
+-}
 module JParse.Zepto.Internal where
 
 import Control.Monad.Trans.Class (lift)
@@ -28,7 +32,10 @@ data ZEnv f a
      , output   :: ChanBounded (f a) -- ^ channel for parsed output
      }
 
--- | Generate a new 'ZEnv' object in the 'IO' monad
+-- | Generate a new 'ZEnv' object within a 'ReaderT' monad-transformer containing
+-- a 'GlobalConf' value.
+--
+-- To run this in the 'IO' monad, use 'withConf'.
 newZEnv :: ReaderT GlobalConf IO (ZEnv f a)
 newZEnv = do
   GlobalConf{..} <- (lift . resetWorkerCount =<< ask)

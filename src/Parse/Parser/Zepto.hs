@@ -28,16 +28,19 @@ module Parse.Parser.Zepto
   , popAll
   ) where
 
+import Prelude hiding (take, takeWhile)
+
 import Control.Applicative
 import Control.Monad (MonadPlus(..), ap)
-import qualified Control.Monad.Fail as Fail
 import Data.ByteString (ByteString)
-import Data.ByteString.Seek (skipString)
 import Data.Monoid as Mon (Monoid(..))
 import Data.Word (Word8)
-import Prelude hiding (take, takeWhile)
+
+import qualified Control.Monad.Fail as Fail
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as B
+
+import Util.ByteString.Seek (skipString)
 
 newtype S = S { input :: ByteString }
 

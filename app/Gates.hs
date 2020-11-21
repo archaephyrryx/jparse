@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Data.ByteString.Streaming.Gates (IsGated, IsZipped, generate) where
+module Gates (IsGated, IsZipped, generate) where
 
 import Prelude hiding (unzip)
 
@@ -8,10 +8,10 @@ import Control.Monad.Trans.Reader (ReaderT(..), asks)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Resource (runResourceT)
 
-import qualified Data.ByteString                  as B
-import qualified Data.ByteString.Streaming.Compat as BS
+import qualified Data.ByteString      as B
+import qualified Streaming.ByteString as BS
 
-import Data.ByteString.Streaming.Sources
+import Sources
 
 import JParse.Channels
 import JParse.Global

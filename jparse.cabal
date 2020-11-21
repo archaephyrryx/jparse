@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0b695486bce53165dc7c102648645e18d1980845df164d2c78a1f79ae17ac3f1
+-- hash: 1ebd0d9a2c5eecf05e150130cb15c4e8dc070feabc8688a04c23db6577015461
 
 name:           jparse
 version:        0.1.0.0
@@ -27,15 +27,6 @@ source-repository head
 
 library
   exposed-modules:
-      Data.ByteString.Build
-      Data.ByteString.Seek
-      Data.ByteString.Split
-      Data.ByteString.Streaming.Compat
-      Data.ByteString.Streaming.Compat.Char8
-      Data.ByteString.Streaming.Compat.Internal
-      Data.ByteString.Streaming.Compat.Type
-      Data.ByteString.Streaming.Gates
-      Data.ByteString.Streaming.Sources
       Data.Nullable
       JParse
       JParse.Attoparsec
@@ -44,28 +35,34 @@ library
       JParse.Channels
       JParse.Global
       JParse.Helper
-      JParse.Internal
       JParse.Pipeline
-      JParse.Streams
       JParse.Zepto
-      JParse.Zepto.Internal
       Parse
-      Parse.Match
-      Parse.Match.Internal
-      Parse.MatchZepto
-      Parse.Parser
-      Parse.Parser.Attoparsec
       Parse.Parser.Zepto
+      Util.ByteString.Build
+      Util.ByteString.Split
+      Util.Streaming
+  other-modules:
+      Data.ByteString.Streaming.Compat
+      Data.ByteString.Streaming.Compat.Char8
+      Data.ByteString.Streaming.Compat.Internal
+      Data.ByteString.Streaming.Compat.Type
+      JParse.Internal
+      JParse.Zepto.Internal
+      Parse.Match
+      Parse.MatchZepto
+      Parse.Match.Internal
       Parse.Read
-      Parse.Read.Internal
       Parse.ReadAlt
       Parse.ReadZepto
+      Parse.Read.Internal
       Parse.Symbol
-  other-modules:
-      Paths_jparse
+      Parse.Parser
+      Parse.Parser.Attoparsec
+      Util.ByteString.Seek
   hs-source-dirs:
       src
-  ghc-options: -O2 -fprof-auto -fprof-cafs
+  ghc-options: -O2
   include-dirs:
       cbits
   build-depends:
@@ -87,7 +84,9 @@ library
 executable jparse-exe
   main-is: Main.hs
   other-modules:
+      Gates
       Options
+      Sources
       Paths_jparse
   hs-source-dirs:
       app

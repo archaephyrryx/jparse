@@ -4,7 +4,7 @@
 module Main (main) where
 
 import qualified Streaming.Prelude as S
-import qualified Data.ByteString.Streaming.Compat as BS
+import qualified Streaming.ByteString as BS
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Builder as D
@@ -17,9 +17,9 @@ import JParse.Global
 
 import Options.Applicative
 
-import Data.ByteString.Streaming.Gates
+import Gates
 
-import Data.ByteString.Build
+import Util.ByteString.Build
 
 opts :: ParserInfo Options
 opts =

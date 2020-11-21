@@ -36,10 +36,28 @@ dependencies:
 
 library:
   source-dirs: src
+  other-modules:
+    - Data.ByteString.Streaming.Compat
+    - Data.ByteString.Streaming.Compat.Char8
+    - Data.ByteString.Streaming.Compat.Internal
+    - Data.ByteString.Streaming.Compat.Type
+    - JParse.Internal
+    - JParse.Zepto.Internal
+    - Parse.Match
+    - Parse.MatchZepto
+    - Parse.Match.Internal
+    - Parse.Read
+    - Parse.ReadAlt
+    - Parse.ReadZepto
+    - Parse.Read.Internal
+    - Parse.Symbol
+    - Parse.Parser
+    - Parse.Parser.Attoparsec
+    - Util.ByteString.Seek
   ghc-options:
     - -O2
-    - -fprof-auto
-    - -fprof-cafs
+#   - -fprof-auto
+#   - -fprof-cafs
   include-dirs: cbits
 
 

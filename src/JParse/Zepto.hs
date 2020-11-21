@@ -57,13 +57,14 @@ import Streaming
 
 import qualified Parse.Parser.Zepto as Z
 
-import Data.ByteString.Split (unconsLine)
 import JParse.Channels
 import JParse.Global
 import JParse.Helper
 import JParse.Pipeline
-import JParse.Streams (lazyLineSplit)
 import JParse.Zepto.Internal
+
+import Util.ByteString.Split (unconsLine)
+import Util.Streaming (lazyLineSplit)
 
 -- | Parses a monadic bytestring that holds exactly one JSON object per line, returning a 'Stream' of
 -- lists of the successful parse results for each individual batch.

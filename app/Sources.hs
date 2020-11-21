@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Data.ByteString.Streaming.Sources where
+module Sources where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
@@ -10,7 +10,7 @@ import           Data.ByteString.Streaming.HTTP (MonadResource(..))
 import           Streaming
 import qualified Streaming.Zip as Zip
 
-import qualified Data.ByteString.Streaming.Compat as BS
+import qualified Streaming.ByteString as BS
 
 import JParse.Helper
 

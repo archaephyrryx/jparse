@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Data.ByteString.Split where
+module Util.ByteString.Split where
 
 import qualified Data.ByteString.Lazy as L
 

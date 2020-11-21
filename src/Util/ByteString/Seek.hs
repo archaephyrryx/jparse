@@ -2,7 +2,7 @@
 {-# LANGUAGE ForeignFunctionInterface, CApiFFI #-}
 
 -- | FFI-based function[s] for efficiently \"seeking\" into strict 'ByteString's
-module Data.ByteString.Seek ( skipString ) where
+module Util.ByteString.Seek ( skipString ) where
 
 import Data.ByteString          (ByteString)
 import Data.ByteString.Internal (ByteString(..), accursedUnutterablePerformIO)

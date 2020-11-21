@@ -2,7 +2,7 @@
 
 -- | Convenient shorthand helper-functions for converting from 'D.Builder' to 'B.ByteString'
 --   when the approximate size-range of the result is known in advance.
-module Data.ByteString.Build where
+module Util.ByteString.Build where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L

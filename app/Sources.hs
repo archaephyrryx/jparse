@@ -46,16 +46,3 @@ condUnzip :: MonadIO m
           -> BS.ByteStream m () -- ^ Non-compressed bytestring
 condUnzip !b mbs = if_ b (Zip.gunzip mbs) mbs
 {-# INLINE condUnzip #-}
-
--- * Stream Conversion
-
--- | Convert each monadic 'BS.ByteString' in a 'Stream' to a strict 'B.ByteString'
-toStricts :: Monad m => Stream (BS.ByteStream m) m r -> Stream (Of B.ByteString) m r
-toStricts = mappedPost _toStrict
-  where
-    _toStrict :: Monad m => BS.ByteStream m r -> m (Of B.ByteString r)
-    _toStrict mbs = do
-      (lbs :> ret) <- BS.toLazy mbs
-      return $! (L.toStrict lbs :> ret)
-    {-# INLINE _toStrict #-}
-{-# INLINE toStricts #-}

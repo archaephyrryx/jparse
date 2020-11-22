@@ -1,9 +1,9 @@
 module Parse
-  ( module Parse.Read
+  ( module Parse.JSON.Read.Attoparsec.Exact
   , module Parse.Match
   , module Parse.Symbol
   ) where
 
-import Parse.Read
+import Parse.JSON.Read.Attoparsec.Exact
 import Parse.Match
 import Parse.Symbol

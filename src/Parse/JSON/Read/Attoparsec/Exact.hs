@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Parse.Read where
+module Parse.JSON.Read.Attoparsec.Exact where
 
 import           Control.Applicative ((<|>))
 import           Control.Monad (mzero, void, when)
@@ -17,22 +17,8 @@ import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
 import           Parse.Symbol
-import           Parse.Read.Internal
-
--- * Generic utility-parsers based on low-level attoparsec constructs
-
--- | skipWhile1 : skips one or more characters for which a predicate holds
-skipWhile1 :: (Word8 -> Bool) -> A.Parser ()
-skipWhile1 p = A.skip p *> A.skipWhile p
-{-# INLINE skipWhile1 #-}
-
--- * String-centric parsers
-
--- | shorthand parser used only for consuming an
---   unescaped close-quote of a string
-eQuote :: A.Parser Word8
-eQuote = A.word8 Quote
-{-# INLINE eQuote #-}
+import           Parse.JSON.Read.Internal
+import           Parse.JSON.Read.Attoparsec.Common
 
 -- | parseToEndQ : parses the payload of a JSON-formatted string
 --   silently consumes end-quote character and any trailing whitespace
@@ -77,28 +63,6 @@ skipEscapes = do
     n <- B.length <$> A.takeWhile isBslash
     when (odd n) skipEscaped
 {-# INLINE skipEscapes #-}
-
-
--- | basic parser that interprets escaped characters (except backslash)
-parseEscaped :: A.Parser Builder
-parseEscaped =
-  A.anyWord8 >>= \case
-    e | escAtom e -> pure $ D.word8 e
-    Hex_u -> do
-      q <- parseHex
-      pure $ D.word8 Hex_u <> D.byteString q
-    _ -> mzero
-{-# INLINE parseEscaped #-}
-
--- | parses uXXXX hexcodes (without initial u)
-parseHex :: A.Parser ByteString
-parseHex = do
-  q <- A.take 4
-  if B.all isHexChar q
-     then pure q
-     else mzero
-{-# INLINE parseHex #-}
-
 
 -- | skipEscaped : efficiently skips over escaped character sequences (omitting leading backslash)
 --   Avoids backtracking (in contrast to parseEscaped) as skipping character-by-character
@@ -194,6 +158,31 @@ skipNumber wantDigit = do
     {-# INLINE plusMinus #-}
 
 
+-- | Skip any trailing list of object keys and values and final close-brace
+-- starting at the initial comma.
+skipTail :: A.Parser ()
+skipTail = A.anyWord8 >>= \case
+    Comma  -> A.skipSpace >> A.word8 Quote *> skipKeyVals
+    RBrace -> pure ()
+    _    -> mzero
+
+-- | Starting just after the double-quote of the first key, Skip key-value
+-- pairs to the end of the object, including final close-brace.
+--
+skipKeyVals :: A.Parser ()
+skipKeyVals = do
+    skipToEndQ >> symbol Colon >> skipValue
+    skipTail
+
+-- | Skip object including final close-brace and trailing whitespace.
+--
+skipObject :: A.Parser ()
+skipObject = A.skipSpace >> A.anyWord8 >>= \case
+    RBrace -> A.skipSpace
+    Quote  -> skipKeyVals >> A.skipSpace
+    _    -> mzero
+
+
 -- | efficiently skips to end of current object without validating sanity of contents
 skipRestObj :: A.Parser ()
 skipRestObj = do
@@ -232,27 +221,3 @@ skipQuick end = do
             LBracket -> skipQuick RBracket >> skipQuick end
             LBrace   -> skipQuick RBrace >> skipQuick end
             _    -> mzero
-
--- | Skip any trailing list of object keys and values and final close-brace
--- starting at the initial comma.
-skipTail :: A.Parser ()
-skipTail = A.anyWord8 >>= \case
-    Comma  -> A.skipSpace >> A.word8 Quote *> skipKeyVals
-    RBrace -> pure ()
-    _    -> mzero
-
--- | Starting just after the double-quote of the first key, Skip key-value
--- pairs to the end of the object, including final close-brace.
---
-skipKeyVals :: A.Parser ()
-skipKeyVals = do
-    skipToEndQ >> symbol Colon >> skipValue
-    skipTail
-
--- | Skip object including final close-brace and trailing whitespace.
---
-skipObject :: A.Parser ()
-skipObject = A.skipSpace >> A.anyWord8 >>= \case
-    RBrace -> A.skipSpace
-    Quote  -> skipKeyVals >> A.skipSpace
-    _    -> mzero

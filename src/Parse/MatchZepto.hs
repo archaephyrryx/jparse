@@ -15,7 +15,7 @@ import           Prelude hiding (fail)
 import           Data.Word (Word8)
 import           Parse.Match.Internal
 import qualified Parse.Parser.Zepto as P
-import           Parse.ReadZepto (skipToEndQ)
+import           Parse.JSON.Read.Zepto (skipToEndQ)
 import           Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result

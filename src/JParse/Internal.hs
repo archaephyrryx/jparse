@@ -11,10 +11,10 @@ import           Data.ByteString.Builder (Builder)
 
 import Parse
 import qualified Parse.Parser.Attoparsec as A
-import qualified Parse.ReadAlt as R
+import qualified Parse.JSON.Read.Attoparsec.Fast as R
 
 import qualified Parse.MatchZepto as Zep
-import qualified Parse.ReadZepto as Zep
+import qualified Parse.JSON.Read.Zepto as Zep
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z
 

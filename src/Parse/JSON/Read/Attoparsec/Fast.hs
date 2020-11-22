@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Parse.ReadAlt where
+module Parse.JSON.Read.Attoparsec.Fast where
 
 import           Control.Monad (mzero, when)
 import qualified Data.Attoparsec.ByteString as A
@@ -16,22 +16,8 @@ import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
 import           Parse.Symbol
-import           Parse.Read.Internal
-
--- * Generic utility-parsers based on low-level attoparsec constructs
-
--- | skipWhile1 : skips one or more characters for which a predicate holds
-skipWhile1 :: (Word8 -> Bool) -> A.Parser ()
-skipWhile1 p = A.skip p *> A.skipWhile p
-{-# INLINE skipWhile1 #-}
-
--- * String-centric parsers
-
--- | shorthand parser used only for consuming an
---   unescaped close-quote of a string
-eQuote :: A.Parser Word8
-eQuote = A.word8 Quote
-{-# INLINE eQuote #-}
+import           Parse.JSON.Read.Internal
+import           Parse.JSON.Read.Attoparsec.Common
 
 -- | parseToEndQ : parses the payload of a JSON-formatted string
 --   silently consumes end-quote character and any trailing whitespace
@@ -68,27 +54,6 @@ skipToEndQ = skipQUnit >> A.skipSpace
             _      -> A.anyWord8 >> go
     {-# INLINE skipQUnit #-}
 {-# INLINE skipToEndQ #-}
-
--- XXX: SHOULD HANDLE BACKSLASH HERE OR IN CALLER
--- | basic parser that interprets escaped characters
-parseEscaped :: A.Parser Builder
-parseEscaped =
-  A.anyWord8 >>= \case
-    e | escAtom e -> pure $ D.word8 e
-    Hex_u -> do
-      q <- parseHex
-      pure $ D.word8 Hex_u <> D.byteString q
-    _ -> mzero
-{-# INLINE parseEscaped #-}
-
--- | parses uXXXX hexcodes (without initial u)
-parseHex :: A.Parser ByteString
-parseHex = do
-  q <- A.take 4
-  if B.all isHexChar q
-     then pure q
-     else mzero
-{-# INLINE parseHex #-}
 
 -- | universal parser that skips over arbitrary-type JSON values
 --   does not perform any sanity validation
@@ -146,41 +111,6 @@ skipNumber wantDigit = do
     nonTerminal RBrace = False
     nonTerminal w = not $ A.isSpace_w8 w
 
--- | efficiently skips to end of current object without validating sanity of contents
-skipRestObj :: A.Parser ()
-skipRestObj = do
-    A.skipWhile $ not . isSpecial
-    A.anyWord8 >>= \case
-        RBrace   -> pure ()
-        Quote    -> skipToEndQ >> skipRestObj
-        LBracket -> skipRestArr >> skipRestObj
-        LBrace   -> skipRestObj >> skipRestObj
-        _    -> mzero
-
--- | efficiently skips to end of current array without validating sanity of contents
-skipRestArr :: A.Parser ()
-skipRestArr = do
-    A.skipWhile $ not . isSpecial
-    A.anyWord8 >>= \case
-        RBracket -> pure ()
-        Quote    -> skipToEndQ >> skipRestArr
-        LBracket -> skipRestArr >> skipRestArr
-        LBrace   -> skipRestObj >> skipRestArr
-        _    -> mzero
-
--- | generic fast-skip to matching terminal symbol
-skipQuick :: Word8 -> A.Parser ()
-skipQuick end = do
-    A.skipWhile $ not . isSpecial
-    A.anyWord8 >>= \w ->
-        if w == end
-        then pure ()
-        else case w of
-            Quote    -> skipToEndQ >> skipQuick end
-            LBracket -> skipQuick RBracket >> skipQuick end
-            LBrace   -> skipQuick RBrace >> skipQuick end
-            _    -> mzero
-
 -- | Skip any trailing list of object keys and values and final close-brace
 -- starting at the initial comma.
 --
@@ -205,3 +135,43 @@ skipObject = A.skipSpace >> A.anyWord8 >>= \case
     RBrace -> A.skipSpace
     Quote  -> skipKeyVals >> A.skipSpace
     _    -> mzero
+
+
+-- | efficiently skips to end of current object without validating sanity of contents
+skipRestObj :: A.Parser ()
+skipRestObj = do
+    A.skipWhile $ not . isSpecial
+    A.anyWord8 >>= \case
+        RBrace   -> pure ()
+        Quote    -> skipToEndQ >> skipRestObj
+        LBracket -> skipRestArr >> skipRestObj
+        LBrace   -> skipRestObj >> skipRestObj
+        _    -> mzero
+
+-- | efficiently skips to end of current array without validating sanity of contents
+skipRestArr :: A.Parser ()
+skipRestArr = do
+    A.skipWhile $ not . isSpecial
+    A.anyWord8 >>= \case
+        RBracket -> pure ()
+        Quote    -> skipToEndQ >> skipRestArr
+        LBracket -> skipRestArr >> skipRestArr
+        LBrace   -> skipRestObj >> skipRestArr
+        _    -> mzero
+
+-- | generic fast-skip to matching terminal symbol
+--
+-- @skipQuick@ is less efficient than 'skipRestObj' or 'skipRestArr' for @]@ or @}@ (respectively).
+-- Please use those functions instead of calling @skipQuick 0x5d@ or @skipQuick 0x7d@ (same for
+-- calls using the synonyms 'RBrace' and 'RBracket').
+skipQuick :: Word8 -> A.Parser ()
+skipQuick end = do
+    A.skipWhile $ not . isSpecial
+    A.anyWord8 >>= \w ->
+        if w == end
+        then pure ()
+        else case w of
+            Quote    -> skipToEndQ >> skipQuick end
+            LBracket -> skipQuick RBracket >> skipQuick end
+            LBrace   -> skipQuick RBrace >> skipQuick end
+            _    -> mzero

@@ -46,10 +46,11 @@ library:
     - Parse.Match
     - Parse.MatchZepto
     - Parse.Match.Internal
-    - Parse.Read
-    - Parse.ReadAlt
-    - Parse.ReadZepto
-    - Parse.Read.Internal
+    - Parse.JSON.Read.Attoparsec.Common
+    - Parse.JSON.Read.Attoparsec.Exact
+    - Parse.JSON.Read.Attoparsec.Fast
+    - Parse.JSON.Read.Zepto
+    - Parse.JSON.Read.Internal
     - Parse.Symbol
     - Parse.Parser
     - Parse.Parser.Attoparsec

@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Parse.ReadZepto where
+module Parse.JSON.Read.Zepto where
 
 import           Control.Monad (mzero)
 import qualified Data.ByteString as B
@@ -14,7 +14,7 @@ import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
 import           Parse.Symbol hiding (token, symbol)
-import           Parse.Read.Internal
+import           Parse.JSON.Read.Internal
 
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z

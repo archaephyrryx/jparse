@@ -1,4 +1,4 @@
-module Parse.Read.Internal
+module Parse.JSON.Read.Internal
   ( isSimple
   , isBslash
   , isHexChar

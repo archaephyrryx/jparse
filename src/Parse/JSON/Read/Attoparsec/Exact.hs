@@ -11,7 +11,6 @@ import           Control.Monad (mzero, void, when)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, skipSpace)
 import qualified Data.ByteString as B
-import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)

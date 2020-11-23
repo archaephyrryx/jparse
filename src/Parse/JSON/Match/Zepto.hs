@@ -7,14 +7,16 @@
 -- of JSON-encoded string values.
 --
 -- Compatible with UTF-16 BMP characters and surrogates pairs.
-module Parse.MatchZepto
+module Parse.JSON.Match.Zepto
   (mapClass, parseMatch, ParseClass)
   where
 
 import           Prelude hiding (fail)
 import           Data.Word (Word8)
-import           Parse.Match.Internal
+
 import qualified Parse.Parser.Zepto as P
+
+import           Parse.JSON.Match.Internal
 import           Parse.JSON.Read.Zepto (skipToEndQ)
 import           Parse.Symbol
 

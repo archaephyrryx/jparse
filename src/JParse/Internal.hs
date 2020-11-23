@@ -11,9 +11,9 @@ import           Data.ByteString.Builder (Builder)
 
 import Parse
 import qualified Parse.Parser.Attoparsec as A
-import qualified Parse.JSON.Read.Attoparsec.Fast as R
+import qualified Parse.JSON.Read.Attoparsec.Fast as Fast
 
-import qualified Parse.MatchZepto as Zep
+import qualified Parse.JSON.Match.Zepto as Zep
 import qualified Parse.JSON.Read.Zepto as Zep
 import qualified Parse.Parser.Zepto as Z
 import qualified Parse.Parser as Z
@@ -109,14 +109,14 @@ getStringValue ckey = do
                   _ -> mzero
 {-# INLINE getStringValue #-}
 
--- | version using 'parseMatchAlt' and Parse.ReadAlt variant functions
+-- | version using 'parseMatchFast' and "Parse.JSON.Read.Attoparsec.Fast" variant functions
 getStringValue' :: [ParseClass] -> A.Parser (Maybe Builder)
 getStringValue' ckey = do
-    this <- parseMatchAlt ckey
+    this <- parseMatchFast ckey
     if this
        then do symbol Colon <* A.word8 Quote
-               Just <$> R.parseToEndQ <* R.skipRestObj
-       else do symbol Colon *> R.skipValue
+               Just <$> Fast.parseToEndQ <* Fast.skipRestObj
+       else do symbol Colon *> Fast.skipValue
                token >>= \case
                   Comma -> A.word8 Quote *> getStringValue' ckey
                   RBrace -> pure Nothing

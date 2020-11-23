@@ -6,7 +6,7 @@
 -- of JSON-encoded string values.
 --
 -- Compatible with UTF-16 BMP characters and surrogates pairs.
-module Parse.Match.Internal
+module Parse.JSON.Match.Internal
   ( DeconBS
   , UnconBS
   , Quad

@@ -43,9 +43,9 @@ library:
     - Data.ByteString.Streaming.Compat.Type
     - JParse.Internal
     - JParse.Zepto.Internal
-    - Parse.Match
-    - Parse.MatchZepto
-    - Parse.Match.Internal
+    - Parse.JSON.Match.Attoparsec
+    - Parse.JSON.Match.Internal
+    - Parse.JSON.Match.Zepto
     - Parse.JSON.Read.Attoparsec.Common
     - Parse.JSON.Read.Attoparsec.Exact
     - Parse.JSON.Read.Attoparsec.Fast

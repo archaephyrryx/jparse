@@ -2,8 +2,6 @@
 
 module Sources where
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming.HTTP as H
 
 import           Data.ByteString.Streaming.HTTP (MonadResource(..))

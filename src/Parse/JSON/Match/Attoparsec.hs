@@ -7,19 +7,20 @@
 -- of JSON-encoded string values.
 --
 -- Compatible with UTF-16 BMP characters and surrogates pairs.
-module Parse.Match
-  (mapClass, parseMatch, parseMatchAlt, ParseClass)
+module Parse.JSON.Match.Attoparsec
+  (mapClass, parseMatch, parseMatchFast, ParseClass)
   where
 
 import           Prelude hiding (fail)
 import           Data.Word (Word8)
 
-import Parse.Match.Internal
 
 import qualified Parse.Parser.Attoparsec as P
 
 import Parse.JSON.Read.Attoparsec.Exact (skipToEndQ)
-import qualified Parse.JSON.Read.Attoparsec.Fast as R (skipToEndQ)
+import qualified Parse.JSON.Read.Attoparsec.Fast as Fast (skipToEndQ)
+
+import Parse.JSON.Match.Internal
 import Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result
@@ -131,8 +132,10 @@ _surr ~(w,t) (!h,!l)
             _     -> fail
         _      -> fail
 
--- | parseMatch : attempt to match against pre-classified query key,
---   skipping to end of current string if a non-match is found
+-- | Attempt to match a valid encoding of a query key,
+--   skipping to end of current string on failure
+--
+-- Malformed JSON string contents lead to parser failure.
 parseMatch :: [ParseClass] -> P.Parser Bool
 parseMatch [] = P.pop >>= \case
     Quote -> pure True
@@ -141,12 +144,15 @@ parseMatch (x:xs) = _match x >>= \case
     True -> parseMatch xs
     False -> False <$ skipToEndQ
 
--- | parseMatch : attempt to match against pre-classified query key,
---   skipping to end of current string if a non-match is found
-parseMatchAlt :: [ParseClass] -> P.Parser Bool
-parseMatchAlt [] = P.pop >>= \case
+-- | Attempt to match a valid encoding of a query key,
+-- skipping to the end of current string on failure
+--
+-- Malformed JSON string contents may be treated as normal non-matches
+-- rather than resulting in parser failure.
+parseMatchFast :: [ParseClass] -> P.Parser Bool
+parseMatchFast [] = P.pop >>= \case
     Quote -> pure True
-    _     -> False <$ R.skipToEndQ
-parseMatchAlt (x:xs) = _match x >>= \case
-    True -> parseMatchAlt xs
-    False -> False <$ R.skipToEndQ
+    _     -> False <$ Fast.skipToEndQ
+parseMatchFast (x:xs) = _match x >>= \case
+    True -> parseMatchFast xs
+    False -> False <$ Fast.skipToEndQ

@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module Parse.Symbol
+module Parse.ASCII.ByteLiterals
   ( symbol
   , token
   , pattern Bslash

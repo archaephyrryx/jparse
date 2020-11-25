@@ -13,7 +13,7 @@ import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
-import           Parse.Symbol hiding (token, symbol)
+import           Parse.ASCII.ByteLiterals hiding (token, symbol)
 import           Parse.JSON.Read.Internal
 
 import qualified Parse.Parser.Zepto as Z

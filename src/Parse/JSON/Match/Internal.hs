@@ -31,7 +31,7 @@ import           Data.ByteString (ByteString)
 import           Data.Word (Word8)
 import qualified Data.ByteString.Base16 as H (encode)
 
-import Parse.Symbol
+import Parse.ASCII.ByteLiterals
 
 type DeconBS = (Word8, [Word8])
 type UnconBS = (Word8, ByteString)

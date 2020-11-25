@@ -14,7 +14,7 @@ import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
-import           Parse.Symbol
+import           Parse.ASCII.ByteLiterals
 import           Parse.JSON.Read.Internal
 
 -- * Generic utility-parsers based on low-level attoparsec constructs

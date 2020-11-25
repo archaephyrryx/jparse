@@ -20,8 +20,8 @@ import qualified Parse.Parser.Attoparsec as P
 import Parse.JSON.Read.Attoparsec.Exact (skipToEndQ)
 import qualified Parse.JSON.Read.Attoparsec.Fast as Fast (skipToEndQ)
 
+import Parse.ASCII.ByteLiterals
 import Parse.JSON.Match.Internal
-import Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result
 _quad :: Quad -> P.Parser Res

@@ -16,9 +16,9 @@ import           Data.Word (Word8)
 
 import qualified Parse.Parser.Zepto as P
 
+import           Parse.ASCII.ByteLiterals
 import           Parse.JSON.Match.Internal
 import           Parse.JSON.Read.Zepto (skipToEndQ)
-import           Parse.Symbol
 
 -- | (attempt to) consume an input 'Quad' case-insensitively and return success result
 _quad :: Quad -> P.Parser Res

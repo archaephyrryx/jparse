@@ -43,6 +43,7 @@ library:
     - Data.ByteString.Streaming.Compat.Type
     - JParse.Internal
     - JParse.Zepto.Internal
+    - Parse.ASCII.ByteLiterals
     - Parse.JSON.Match.Attoparsec
     - Parse.JSON.Match.Internal
     - Parse.JSON.Match.Zepto
@@ -51,7 +52,6 @@ library:
     - Parse.JSON.Read.Attoparsec.Fast
     - Parse.JSON.Read.Zepto
     - Parse.JSON.Read.Internal
-    - Parse.Symbol
     - Parse.Parser
     - Parse.Parser.Attoparsec
     - Util.ByteString.Seek

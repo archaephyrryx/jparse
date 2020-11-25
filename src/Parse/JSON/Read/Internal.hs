@@ -12,7 +12,7 @@ module Parse.JSON.Read.Internal
 import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8)
 
 import           Data.Word (Word8)
-import           Parse.Symbol
+import           Parse.ASCII.ByteLiterals
 
 -- | determines whether a character is a non-escaping string-internal character
 isSimple :: Word8 -> Bool

@@ -13,12 +13,11 @@ import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
-import           Parse.ASCII.ByteLiterals hiding (token, symbol)
+import           Parse.ASCII.Zepto (symbol)
+import           Parse.ASCII.ByteLiterals
 import           Parse.JSON.Read.Internal
 
 import qualified Parse.Parser.Zepto as Z
-import qualified Parse.Parser as Z
-import           Parse.Parser (symbol)
 
 -- * String-centric parsers
 

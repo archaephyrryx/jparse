@@ -3,8 +3,6 @@
 
 module JParse.Channels where
 
-import Prelude hiding (null)
-
 import qualified Control.Concurrent.BoundedChan as BC
 import qualified Data.ByteString as B
 import qualified Streaming.Prelude as S
@@ -37,10 +35,10 @@ readChanBounded :: ChanBounded a -> IO a
 readChanBounded = BC.readChan
 {-# INLINE readChanBounded #-}
 
--- | Feed values from a 'Stream' into a 'Chan', writing 'null' once the stream is exhausted
+-- | Feed values from a 'Stream' into a 'Chan', writing 'nullValue' once the stream is exhausted
 --
--- Note that it is impossible to distinguish between a literal 'null' value occuring in the
--- stream and the 'null' used as an end-of-stream marker; if 'null' writes are unavoidable
+-- Note that it is impossible to distinguish between a literal 'nullValue' occuring in the
+-- stream and the 'nullValue' used as an end-of-stream marker; if 'nullValue' writes are unavoidable
 -- or otherwise desirable, use 'feedChanMaybe' instead.
 feedChan :: (MonadIO m, Nullable a) => Chan a -> Stream (Of a) m r -> m ()
 feedChan chan = go
@@ -48,7 +46,7 @@ feedChan chan = go
     go stream =
       S.uncons stream >>= \case
         Just (x, rest) -> liftIO (writeChan chan x) >> go rest
-        Nothing -> liftIO $ writeChan chan null
+        Nothing -> liftIO $ writeChan chan nullValue
 {-# INLINE feedChan #-}
 
 -- | Construct a 'Stream' consisting of values read from a 'Chan', terminating on 'null'
@@ -66,19 +64,19 @@ drainChan chan = go
 
 -- | 'feedChan' for 'ChanBounded'
 --
--- Use 'feedChanBoundedMaybe' if 'null' writes are unavoidable
+-- Use 'feedChanBoundedMaybe' if 'nullValue' writes are unavoidable
 feedChanBounded :: (MonadIO m, Nullable a) => ChanBounded a -> Stream (Of a) m r -> m ()
 feedChanBounded cb = go
   where
     go stream =
       S.uncons stream >>= \case
         Just (x, rest) -> liftIO (writeChanBounded cb x) >> go rest
-        Nothing -> liftIO $ writeChanBounded cb null
+        Nothing -> liftIO $ writeChanBounded cb nullValue
 {-# INLINE feedChanBounded #-}
 
 -- | 'drainChan' for 'ChanBounded'
 --
--- Use 'drainChanBoundedMaybe' if 'null' reads are possible
+-- Use 'drainChanBoundedMaybe' if 'nullValue' reads are possible
 drainChanBounded :: (MonadIO m, Nullable a) => ChanBounded a -> Stream (Of a) m ()
 drainChanBounded cb = go
   where
@@ -90,8 +88,8 @@ drainChanBounded cb = go
 
 -- | Feed 'Just'-wrapped values from a 'Stream' into a 'Chan', writing 'Nothing' once the stream is exhausted
 --
--- This should be used over 'feedChan' if 'mempty' writs of the relevant type is an unavoidable possibility
--- or if the type in question does not have a 'Monoid' instance.
+-- This should be used over 'feedChan' if 'nullValue' writes of the relevant type is an unavoidable possibility
+-- or if the type in question does not have a 'Nullable' instance.
 feedChanMaybe :: MonadIO m => Chan (Maybe a) -> Stream (Of a) m r -> m ()
 feedChanMaybe chan = go
   where
@@ -103,8 +101,8 @@ feedChanMaybe chan = go
 
 -- | Construct a 'Stream' consisting of unwrapped 'Just' values read from a 'Chan', terminating on 'Nothing'
 --
--- This should be used in combination with 'feedChanMaybe' when 'mempty' may be written, or the relevant type
--- does not have instances of both 'Eq' and 'Monoid'.
+-- This should be used in combination with 'feedChanMaybe' when 'nullValue' may be written, or the relevant type
+-- does not have instances of 'Nullable'
 drainChanMaybe :: MonadIO m => Chan (Maybe a) -> Stream (Of a) m ()
 drainChanMaybe chan = go
   where
@@ -136,7 +134,7 @@ drainChanBoundedMaybe cb = go
         Just x -> Step (x :> go)
 {-# INLINE drainChanBoundedMaybe #-}
 
--- | Feed a (monadic) 'BS.ByteString' to a 'ChanBounded B.ByteString' by incrementally writing each chunk
+-- | Feed a 'BS.ByteStream' to a 'ChanBounded B.ByteString' by incrementally writing each chunk
 writeBS :: MonadIO m => ChanBounded B.ByteString -> BS.ByteStream m r -> m ()
 writeBS cb = go
   where

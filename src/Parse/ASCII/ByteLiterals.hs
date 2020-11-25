@@ -1,9 +1,17 @@
 {-# LANGUAGE PatternSynonyms #-}
 
+{-|
+Module      : Parse.ASCII.ByteLiterals
+Description : Pattern synonyms for ASCII byte literals
+Copyright   : (c) Peter Duchovni, 2020
+License     : BSD-3
+Maintainer  : caufeminecraft+github@gmail.com
+
+This module consists of 
+
+-}
 module Parse.ASCII.ByteLiterals
-  ( symbol
-  , token
-  , pattern Bslash
+  ( pattern Bslash
   , pattern Quote
   , pattern Slash
   , pattern Minus
@@ -21,20 +29,7 @@ module Parse.ASCII.ByteLiterals
   , pattern Hex_a, pattern Hex_f
   ) where
 
-import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (skipSpace)
-
 import           Data.Word (Word8)
-
--- | symbol : skips a single-character token and any trailing whitespace
-symbol :: Word8 -> A.Parser ()
-symbol w = A.word8 w *> A.skipSpace
-{-# INLINE symbol #-}
-
--- | token : parses an arbitrary single-character token and skips any trailing whitespace
-token :: A.Parser Word8
-token = A.anyWord8 <* A.skipSpace
-{-# INLINE token #-}
 
 -- * Single-character pattern synonyms, with occasional overlap
 

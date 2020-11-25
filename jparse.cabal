@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8128d20f2bee190fdceb6dfd38dab534f1ecf40e67909adf4176d9452296dba1
+-- hash: 3766539ba60671ae6f115cc0d248a848af6c57e47ae11d19bb192986bcdade17
 
 name:           jparse
 version:        0.1.0.0
@@ -38,6 +38,8 @@ library
       JParse.Pipeline
       JParse.Zepto
       Parse
+      Parse.ASCII.Attoparsec
+      Parse.ASCII.Zepto
       Parse.Parser.Zepto
       Util.ByteString.Build
       Util.ByteString.Split
@@ -58,7 +60,6 @@ library
       Parse.JSON.Read.Attoparsec.Fast
       Parse.JSON.Read.Zepto
       Parse.JSON.Read.Internal
-      Parse.Parser
       Parse.Parser.Attoparsec
       Util.ByteString.Seek
   hs-source-dirs:

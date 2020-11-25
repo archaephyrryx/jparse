@@ -10,13 +10,15 @@ import           Data.ByteString (ByteString)
 import           Data.ByteString.Builder (Builder)
 
 import Parse
+import Parse.ASCII.Attoparsec
+
 import qualified Parse.Parser.Attoparsec as A
 import qualified Parse.JSON.Read.Attoparsec.Fast as Fast
 
 import qualified Parse.JSON.Match.Zepto as Zep
 import qualified Parse.JSON.Read.Zepto as Zep
 import qualified Parse.Parser.Zepto as Z
-import qualified Parse.Parser as Z
+import qualified Parse.ASCII.Zepto as Z
 
 -- | \"Block-Mode\" 'A.Parser' that attempts to return a 'Builder' consisting of the contents
 -- of the string-value associated with the first JSON key matching a query string.

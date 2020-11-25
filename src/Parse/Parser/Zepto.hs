@@ -11,21 +11,22 @@
 module Parse.Parser.Zepto
   ( Parser
   , Result(..)
-  , parseR
-  , parse
   , atEnd
-  , word8
-  , string
-  , stringCI
-  , take
-  , takeWhile
-  , skip
-  , skipWhile
-  , skipEndQuote
+  , parse
+  , parseR
   , peek
   , peekAll
   , pop
   , popAll
+  , skip
+  , skipEndQuote
+  , skipSpace
+  , skipWhile
+  , string
+  , stringCI
+  , take
+  , takeWhile
+  , word8
   ) where
 
 import Prelude hiding (take, takeWhile)
@@ -157,6 +158,18 @@ skipWhile p = do
   t <- gets (B.dropWhile p . input)
   put (S t)
 {-# INLINE skipWhile #-}
+
+-- | Skip sequences of ASCII whitespace characters
+--
+-- Terminates without failing if reached end of input.
+skipSpace :: Parser ()
+skipSpace = skipWhile isSpace
+  where
+    -- copy of 'Data.Attoparsec.ByteString.Char8.isSpace_w8'
+    isSpace :: Word8 -> Bool
+    isSpace w = w == 32 || w - 9 <= 4
+    {-# INLINE isSpace #-}
+{-# INLINE skipSpace #-}
 
 -- | Consume @n@ bytes of input.
 take :: Int -> Parser ByteString

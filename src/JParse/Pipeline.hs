@@ -63,13 +63,13 @@ import Control.Concurrent.STM
 import Control.Monad (replicateM_, unless)
 import Streaming
 
-import qualified Data.Nullable as N
+import Data.Nullable
 
 import JParse.Channels
 
 -- | Spawns a thread that writes the contents of a 'Stream' to a 'ChanBounded'
 -- with the same internal type.
-writeBatches :: N.Nullable v
+writeBatches :: Nullable v
              => ChanBounded v
              -> Stream (Of v) IO ()
              -> IO ()
@@ -89,7 +89,7 @@ writeBatches inp str = void $ async $ feedChanBounded inp str
 -- but is nevertheless responsible for ensuring that processed batches are not \'lost\' to the ether. When
 -- used alongside 'detect', it is implicitly assumed that writes to an output channel are occurring, whether
 -- or not this is handled by the dispatched workers or an intervening custom pipeline element.
-dispatch :: N.Nullable v
+dispatch :: Nullable v
          => Int -- ^ number of worker threads to spawn
          -> ChanBounded v -- ^ input channel
          -> TVar Int -- ^ counter for number of unterminated worker threads
@@ -100,7 +100,7 @@ dispatch nworkers input nw f = replicateM_ nworkers $ async $ worker
     worker :: IO ()
     worker = do
       item <- readChanBounded input
-      if N.isNull item
+      if isNull item
         then do
           atomically $ modifyTVar nw pred
           writeChanBounded input item
@@ -111,7 +111,7 @@ dispatch nworkers input nw f = replicateM_ nworkers $ async $ worker
 
 -- | Creates a thread that writes a sentinel value of 'N.null' to the output channel
 -- to indicate end-of-output after waiting for all worker threads to signal inactivity.
-detect :: N.Nullable w => ChanBounded w -> TVar Int -> IO ()
+detect :: Nullable w => ChanBounded w -> TVar Int -> IO ()
 detect output nw = void . async $ monitor
   where
     monitor :: IO ()
@@ -119,6 +119,6 @@ detect output nw = void . async $ monitor
       atomically $ do
         n <- readTVar nw
         unless (n == 0) retry
-      writeChanBounded output N.null
+      writeChanBounded output nullValue
     {-# INLINE monitor #-}
 {-# INLINE detect #-}

@@ -52,7 +52,6 @@ library:
     - Parse.JSON.Read.Attoparsec.Fast
     - Parse.JSON.Read.Zepto
     - Parse.JSON.Read.Internal
-    - Parse.Parser
     - Parse.Parser.Attoparsec
     - Util.ByteString.Seek
   ghc-options:

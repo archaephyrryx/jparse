@@ -4,7 +4,7 @@ module Parse.Parser.Attoparsec where
 
 import           Data.ByteString      (ByteString)
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (stringCI)
+import qualified Data.Attoparsec.ByteString.Char8 as A (stringCI, isSpace_w8)
 import Control.Monad (void)
 import Data.Word (Word8)
 
@@ -44,6 +44,10 @@ stringCI = A.stringCI
 skipWhile :: (Word8 -> Bool) -> Parser ()
 skipWhile = A.skipWhile
 {-# INLINE skipWhile #-}
+
+skipSpace :: Parser ()
+skipSpace = skipWhile A.isSpace_w8
+{-# INLINE skipSpace #-}
 
 -- | Consumes and returns longest prefix of bytes for which a predicate holds. Alias for 'A.skipWhile'
 takeWhile :: (Word8 -> Bool) -> Parser ByteString

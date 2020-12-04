@@ -18,7 +18,7 @@ import           Streaming.Internal (Stream(..))
 import qualified Data.ByteString.Streaming.Compat as BS
 
 import JParse.Attoparsec.Common
-import JParse.Helper (cond, doJust)
+import Util.Helper (cond, doJust)
 
 -- | Run 'parseS' using a given parser over arbitrary upstream
 -- and return stream of unwrapped 'Just' results

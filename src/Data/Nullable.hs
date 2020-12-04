@@ -1,9 +1,17 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
+{-|
+Module      : Data.Nullable
+Description : Typeclass for partial equality against sentinel null-value
+Copyright   : (c) Peter Duchovni, 2020
+License     : BSD-3
+Maintainer  : caufeminecraft+github@gmail.com
 
--- | Declaration and instances for type-class 'Nullable', which associates an \'empty\' value to
--- a given type and provides a function for testing partial equality against this value. This applies
--- most naturally to \'container\' types, as well as types that already have a 'Monoid' instance with
--- a distinguished (i.e. identifiable) value of 'mempty'.
+The 'Nullable' type-class defines an \'empty\' value of every instance type,
+along with a predicate that determines whether a given value is \'empty\'.
+This applies most naturally to \'container\' types, as well as types
+that already have a 'Monoid' instance with a distinguished
+(i.e. identifiable) value of 'mempty'.
+-}
 module Data.Nullable where
 
 -- | Type-class for types with a distinguished \"null\" or

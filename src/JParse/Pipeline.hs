@@ -6,17 +6,17 @@ The common use-case of these functions is
 @
 example :: 'N.Nullable' a => Stream (Of a) IO () -> Stream (Of b) IO ()
 example str = do
-    output <- liftIO $ 'newChanBounded' n
+    output <- liftIO $ 'newBoundedChan' n
     liftIO $ do
-        input <- 'newChanBounded' n
+        input <- 'newBoundedChan' n
         sem <- 'newTVarIO' m
         'writeBatches' input str
         'dispatch' m input sem (doWork output)
         'detect' output sem
-    'drainChanBoundedMaybe' output
+    'drainChanMaybe' output
 
-doWork :: ChanBounded (Maybe b) -> a -> IO ()
-doWork output x = writeChanBounded output $! Just $ someFunctionOf x
+doWork :: 'BoundedChan' (Maybe b) -> a -> IO ()
+doWork output x = 'writeChan' output $! Just $ someFunctionOf x
 @
 
 where @doWork@ is a function that processes a batch of work and writes the result to a bounded channel.
@@ -35,26 +35,26 @@ channel, in which case the initial value should equal the sum of worker counts a
 @
 example' :: ('N.Nullable' a, 'N.Nullable' b) => Stream (Of a) IO () -> Stream (Of b) IO () -> Stream (Of c) IO ()
 example' strA strB = do
-    output <- liftIO $ 'newChanBounded' n
+    output <- liftIO $ 'newBoundedChan' n
     liftIO $ do
-        inputA <- 'newChanBounded' m
-        inputB <- 'newChanBounded' m
+        inputA <- 'newBoundedChan' m
+        inputB <- 'newBoundedChan' m
         sem <- 'newTVarIO' (na+nb)
         'writeBatches' inputA strA
         'writeBatches' inputB strB
         'dispatch' na inputA sem (doWorkA output)
         'dispatch' nb inputB sem (doWorkB output)
         'detect' output sem
-    'drainChanBoundedMaybe' output
+    'drainChanMaybe' output
 
-doWorkA :: ChanBounded (Maybe c) -> a -> IO ()
-doWorkA output x = writeChanBounded output $! Just $ functionA x
+doWorkA :: BoundedChan (Maybe c) -> a -> IO ()
+doWorkA output x = writeChan output $! Just $ functionA x
 
-doWorkB :: ChanBounded (Maybe c) -> b -> IO ()
-doWorkB output y = writeChanBounded output $! Just $ functionB y
+doWorkB :: BoundedChan (Maybe c) -> b -> IO ()
+doWorkB output y = writeChan output $! Just $ functionB y
 @
 -}
-module JParse.Pipeline where
+module JParse.Pipeline (writeBatches, dispatch, detect) where
 
 import qualified Data.ByteString.Lazy as L
 
@@ -67,31 +67,31 @@ import Data.Nullable
 
 import JParse.Channels
 
--- | Spawns a thread that writes the contents of a 'Stream' to a 'ChanBounded'
+-- | Spawns a thread that writes the contents of a 'Stream' to a 'BoundedChan'
 -- with the same internal type.
 writeBatches :: Nullable v
-             => ChanBounded v
+             => BoundedChan v
              -> Stream (Of v) IO ()
              -> IO ()
-writeBatches inp str = void $ async $ feedChanBounded inp str
+writeBatches inp str = void $ async $ feedChan inp str
 {-# INLINE writeBatches #-}
-{-# SPECIALIZE INLINE writeBatches :: ChanBounded L.ByteString -> Stream (Of L.ByteString) IO () -> IO () #-}
+{-# SPECIALIZE INLINE writeBatches :: BoundedChan L.ByteString -> Stream (Of L.ByteString) IO () -> IO () #-}
 
 -- | Creates @n@ worker threads to read from an input channel and perform an IO computation
 -- over channel elements until a 'N.null' element is encountered.
 --
 -- When used internally, the \"work\"-function is a closure around
--- an \"output\"" @'ChanBounded' w@, that applies a transformation
+-- an \"output\"" @'BoundedChan' w@, that applies a transformation
 -- to each line of a multi-line batched 'L.ByteString' and writes
 -- the processed results to the output channel.
 --
 -- When used externally, the IO computation over each batch is not required to write to an output channel,
 -- but is nevertheless responsible for ensuring that processed batches are not \'lost\' to the ether. When
 -- used alongside 'detect', it is implicitly assumed that writes to an output channel are occurring, whether
--- or not this is handled by the dispatched workers or an intervening custom pipeline element.
+-- this is handled by the dispatched workers or an intervening custom pipeline element.
 dispatch :: Nullable v
          => Int -- ^ number of worker threads to spawn
-         -> ChanBounded v -- ^ input channel
+         -> BoundedChan v -- ^ input channel
          -> TVar Int -- ^ counter for number of unterminated worker threads
          -> (v -> IO ()) -- ^ \"work\" function operating over batches
          -> IO ()
@@ -99,19 +99,19 @@ dispatch nworkers input nw f = replicateM_ nworkers $ async $ worker
   where
     worker :: IO ()
     worker = do
-      item <- readChanBounded input
+      item <- readChan input
       if isNull item
         then do
           atomically $ modifyTVar nw pred
-          writeChanBounded input item
+          writeChan input item
         else f item >> worker
 {-# INLINE dispatch #-}
-{-# SPECIALIZE INLINE dispatch :: Int -> ChanBounded L.ByteString -> TVar Int -> (L.ByteString -> IO ()) -> IO () #-}
+{-# SPECIALIZE INLINE dispatch :: Int -> BoundedChan L.ByteString -> TVar Int -> (L.ByteString -> IO ()) -> IO () #-}
 
 
 -- | Creates a thread that writes a sentinel value of 'N.null' to the output channel
 -- to indicate end-of-output after waiting for all worker threads to signal inactivity.
-detect :: Nullable w => ChanBounded w -> TVar Int -> IO ()
+detect :: Nullable w => BoundedChan w -> TVar Int -> IO ()
 detect output nw = void . async $ monitor
   where
     monitor :: IO ()
@@ -119,6 +119,6 @@ detect output nw = void . async $ monitor
       atomically $ do
         n <- readTVar nw
         unless (n == 0) retry
-      writeChanBounded output nullValue
+      writeChan output nullValue
     {-# INLINE monitor #-}
 {-# INLINE detect #-}

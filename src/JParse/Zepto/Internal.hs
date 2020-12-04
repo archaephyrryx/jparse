@@ -28,8 +28,8 @@ data ZEnv f a
    = ZEnv
      { nworkers :: Int -- ^ number of workers (runtime)
      , nw       :: TVar Int -- ^ number of unterminated worker threads
-     , input    :: ChanBounded L.ByteString -- ^ channel for unparsed input
-     , output   :: ChanBounded (f a) -- ^ channel for parsed output
+     , input    :: BoundedChan L.ByteString -- ^ channel for unparsed input
+     , output   :: BoundedChan (f a) -- ^ channel for parsed output
      }
 
 -- | Generate a new 'ZEnv' object within a 'ReaderT' monad-transformer containing
@@ -41,8 +41,8 @@ newZEnv = do
   GlobalConf{..} <- (lift . resetWorkerCount =<< ask)
   let nworkers = wkThreads
   nw     <- lift $ newTVarIO wkThreads
-  input  <- lift $ newChanBounded workLimit
-  output <- lift $ newChanBounded workLimit
+  input  <- lift $ newBoundedChan workLimit
+  output <- lift $ newBoundedChan workLimit
   return ZEnv{..}
 
 -- | Creates @n@ worker threads to read from an input channel and perform an IO computation

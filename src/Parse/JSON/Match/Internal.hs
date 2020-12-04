@@ -2,10 +2,17 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Specialized parser directives for matching all possible representations
--- of JSON-encoded string values.
---
--- Compatible with UTF-16 BMP characters and surrogates pairs.
+{-|
+Module      : Parse.JSON.Match.Internal
+Description : Definitions of parse-directives for JSON-string matching
+Copyright   : (c) Peter Duchovni, 2020
+License     : BSD-3
+Maintainer  : caufeminecraft+github@gmail.com
+
+Type definitions and internal logic for translating JSON-encoded strings into
+-- sequences of canonical lex-tokens to be used as directives for parsing any valid
+-- JSON-encoded byte-sequence that is to be considered a match against the given string.
+-}
 module Parse.JSON.Match.Internal
   ( DeconBS
   , UnconBS
@@ -17,8 +24,6 @@ module Parse.JSON.Match.Internal
   , pass
   , mark
   , fail
-  , depack
-  , _class
   , mapClass
   )
   where

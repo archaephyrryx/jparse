@@ -1,6 +1,6 @@
 -- | Assorted helper functions that depend only on base
 -- and are non-application-specific.
-module JParse.Helper
+module Util.Helper
   ( if_
   , fi
   , cond

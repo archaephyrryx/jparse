@@ -3,7 +3,7 @@ version:             0.1.0.0
 github:              "archaephyrryx/jparse"
 license:             BSD3
 author:              "Peter Duchovni"
-maintainer:          "caufeminecraft+ghc@gmail.com"
+maintainer:          "caufeminecraft+github@gmail.com"
 copyright:           "2020 Peter Duchovni"
 
 extra-source-files:
@@ -11,13 +11,22 @@ extra-source-files:
 - ChangeLog.md
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis: Efficient bulk single-key lookup over streams of JSON objects
+category: JSON
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/archaephyrryx/jparse#readme>
+description: 
+    A specialized library defining pipeline components for processing bulk streams of individual JSON
+    objects through an efficient single-key string-value lookup. Detailed documentation of the core
+    pipeline components can be found in the documentation for the "JParse" module, whose sub-modules
+    comprise the majority of user-relevant imports. Internal implementation of JSON parsing can be found
+    in the sub-modules of "Parse", while assorted auxilliary definitions and functions are found in the
+    remainder of the library.
+
+    Please see the README on GitHub at <https://github.com/archaephyrryx/jparse#readme> for a more detailed
+    description of the library as a whole.
 
 dependencies:
 - base >= 4.7 && < 5

@@ -4,15 +4,18 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3766539ba60671ae6f115cc0d248a848af6c57e47ae11d19bb192986bcdade17
+-- hash: 9f773b0f5ce9348aa88369af56be8db4fc565addc0ca84813443062da8268b7c
 
 name:           jparse
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/archaephyrryx/jparse#readme>
+synopsis:       Efficient bulk single-key lookup over streams of JSON objects
+description:    A specialized library defining pipeline components for processing bulk streams of individual JSON objects through an efficient single-key string-value lookup. Detailed documentation of the core pipeline components can be found in the documentation for the "JParse" module, whose sub-modules comprise the majority of user-relevant imports. Internal implementation of JSON parsing can be found in the sub-modules of "Parse", while assorted auxilliary definitions and functions are found in the remainder of the library.
+                Please see the README on GitHub at <https://github.com/archaephyrryx/jparse#readme> for a more detailed description of the library as a whole.
+category:       JSON
 homepage:       https://github.com/archaephyrryx/jparse#readme
 bug-reports:    https://github.com/archaephyrryx/jparse/issues
 author:         Peter Duchovni
-maintainer:     caufeminecraft+ghc@gmail.com
+maintainer:     caufeminecraft+github@gmail.com
 copyright:      2020 Peter Duchovni
 license:        BSD3
 license-file:   LICENSE
@@ -34,7 +37,6 @@ library
       JParse.Attoparsec.Streaming
       JParse.Channels
       JParse.Global
-      JParse.Helper
       JParse.Pipeline
       JParse.Zepto
       Parse
@@ -43,6 +45,7 @@ library
       Parse.Parser.Zepto
       Util.ByteString.Build
       Util.ByteString.Split
+      Util.Helper
       Util.Streaming
   other-modules:
       Data.ByteString.Streaming.Compat

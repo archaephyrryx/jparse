@@ -19,10 +19,10 @@ Line-Mode stream-parsers to be used when JSON input is strictly one-per-line
 and when the input lines are short enough to be reasonably read into memory.
 
 The top-level functions 'lineParseStream', 'lineParseFold', and 'lineParseFoldIO' are stream-parsers
-that process JSON data (formatted appropriately for Line-Mode) obtained from a monadic
-'Data.ByteString.Streaming.ByteString', returning a 'Stream' of values, with 'lineParseFold'
-and its IO variant offering more robust control of post-processing. Each functions performs its computations in parallel,
-processing \"batches\" of JSON data according to the provided parser, with optional fold-and-convert
+that process JSON data (formatted appropriately for Line-Mode) obtained from a
+'BS.ByteStream', returning a 'Stream' of values, with 'lineParseFold'
+and its IO variant offering more robust control of post-processing. Each function performs its computations in parallel,
+processing \"batches\" of JSON data according to the provided parser, with optional fold-and-extract
 parameters.
 
 The parser-library these functions are implemented in terms of is "Parse.Parser.Zepto",
@@ -59,9 +59,10 @@ import qualified Parse.Parser.Zepto as Z
 
 import JParse.Channels
 import JParse.Global
-import JParse.Helper
 import JParse.Pipeline
 import JParse.Zepto.Internal
+
+import Util.Helper
 
 import Util.ByteString.Split (unconsLine)
 import Util.Streaming (lazyLineSplit)
@@ -76,26 +77,26 @@ lineParseStream conf parser mbs = parseLines conf parser $ lazyLineSplit (batchS
 {-# INLINE lineParseStream #-}
 
 -- | Parses a monadic bytestring that holds exactly one JSON object per line,
--- returning a 'Stream' of values of specified accumulation and finalization
+-- returning a 'Stream' of values of specified accumulation and extraction
 -- functions per-batch
 lineParseFold :: GlobalConf -- ^ Set of global constants for behavior tuning
               -> Z.Parser (Maybe a) -- ^ Parser to run over each line
               -> (a -> x -> x) -- ^ Accumulation function
               -> x -- ^ Initial value of accumulator
-              -> (x -> b) -- ^ Finalization function to run over final accumulator value per-batch
+              -> (x -> b) -- ^ Extraction function to run over final accumulator value per-batch
               -> BS.ByteStream IO () -- ^ Input JSON-stream
               -> Stream (Of b) IO ()
 lineParseFold conf parser f z g mbs = parseLinesFold conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFold #-}
 
 -- | Parses a monadic bytestring that holds exactly one JSON object per line,
--- returning a 'Stream' of values of specified accumulation and monadic finalization
+-- returning a 'Stream' of values of specified accumulation and monadic extraction
 -- functions per-batch. The accumulator value may also be monadic in certain cases.
 lineParseFoldIO :: GlobalConf -- ^ Set of global constants for behavior tuning
                 -> Z.Parser (Maybe a) -- ^ Parser to run over each line
                 -> (a -> x -> x) -- ^ Accumulation function
                 -> x -- ^ Initial value of accumulator
-                -> (x -> IO b) -- ^ Monadic finalization function to run over final accumulator value per-batch
+                -> (x -> IO b) -- ^ Monadic extraction function to run over final accumulator value per-batch
                 -> BS.ByteStream IO () -- ^ Input JSON-stream
                 -> Stream (Of b) IO ()
 lineParseFoldIO conf parser f z g mbs = parseLinesFoldIO conf parser f z g $ lazyLineSplit (batchSize conf) mbs
@@ -113,13 +114,13 @@ parseLines conf z str = do
     writeBatches input str
     dispatchZEnv env (labor output z)
     detectZEnv env
-  drainChanBounded output
+  drainChan output
 {-# INLINE parseLines #-}
 
 
 
 -- | Applies a 'Z.Parser' to each line in a 'Stream' of 'L.ByteString' \"batches\" of JSON data,
--- returning a 'Stream' consisting of finalized values accumulated using a right-associative fold.
+-- returning a 'Stream' consisting of extracted values accumulated using a right-associative fold.
 parseLinesFold :: GlobalConf
                -> Z.Parser (Maybe a)
                -> (a -> x -> x) -> x -> (x -> b)
@@ -131,11 +132,11 @@ parseLinesFold conf parser f z g str = do
     writeBatches input str
     dispatchZEnv env (laborFold output parser f z g)
     detectZEnv env
-  drainChanBoundedMaybe output
+  drainChanMaybe output
 {-# INLINE parseLinesFold #-}
 
 -- | Applies a 'Z.Parser' to each line in a 'Stream' of 'L.ByteString' \"batches\" of JSON data,
--- returning a 'Stream' consisting of monadically finalized values accumulated using a (possibly monadic)
+-- returning a 'Stream' consisting of monadically extracted values accumulated using a (possibly monadic)
 -- right-associative fold.
 parseLinesFoldIO :: GlobalConf
                  -> Z.Parser (Maybe a)
@@ -148,28 +149,27 @@ parseLinesFoldIO conf parser f z g str = do
     writeBatches input str
     dispatchZEnv env (laborFoldIO output parser f z g)
     detectZEnv env
-  drainChanBoundedMaybe output
+  drainChanMaybe output
 {-# INLINE parseLinesFoldIO #-}
 
 -- | Function passed to 'dispatch' in 'parseLinesStream'
 --
 -- Accumulates a list of unprocessed parse results,
 -- writing to the provided output channel when the list is non-empty.
-labor :: ChanBounded ([a])
+labor :: BoundedChan ([a])
       -> Z.Parser (Maybe a)
       -> L.ByteString
       -> IO ()
 labor output z lbs = do
   let xs = refold unconsLine (accZepto z) [] lbs
-  unless (null xs) $
-    writeChanBounded output xs
+  unless (null xs) $ writeChan output xs
 {-# INLINE labor #-}
 
 -- | Function passed to 'dispatch' in 'parseLinesFold'
 --
--- Performs a right-associative fold over each parse result, finalizing the value
+-- Performs a right-associative fold over each parse result, extracting the value
 -- and writing it to the provided output channel.
-laborFold :: ChanBounded (Maybe b)
+laborFold :: BoundedChan (Maybe b)
           -> Z.Parser (Maybe a)
           -> (a -> x -> x) -> x -> (x -> b)
           -> L.ByteString
@@ -177,14 +177,14 @@ laborFold :: ChanBounded (Maybe b)
 laborFold output parser f z g lbs = do
   let xs = refold unconsLine (accZeptoFold parser f) z lbs
       !ys = g xs
-  writeChanBounded output $! Just ys
+  writeChan output $! Just ys
 {-# INLINE laborFold #-}
 
 -- | Function passed to 'dispatch' in 'parseLinesFoldIO'
 --
--- Performs a right-associative fold over each parse result, finalizing the value in the IO monad
+-- Performs a right-associative fold over each parse result, extracting the value in the IO monad
 -- and writing the pure result to the provided output channel.
-laborFoldIO :: ChanBounded (Maybe b)
+laborFoldIO :: BoundedChan (Maybe b)
             -> Z.Parser (Maybe a)
             -> (a -> x -> x) -> x -> (x -> IO b)
             -> L.ByteString
@@ -192,7 +192,7 @@ laborFoldIO :: ChanBounded (Maybe b)
 laborFoldIO output parser f z g lbs = do
   let xs = refold unconsLine (accZeptoFold parser f) z lbs
   !ys <- g xs
-  writeChanBounded output $! Just ys
+  writeChan output $! Just ys
 {-# INLINE laborFoldIO #-}
 
 -- | List-specific parse-result right-fold function

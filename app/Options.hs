@@ -60,7 +60,6 @@ confParse :: Parser GlobalConf
 confParse = do
   batchSize <- option auto (long "lines" <> short 'l' <> value (batchSize defaultGlobalConf) <> metavar "NLINES" <> help "Number of lines to process per batch (line-mode only)")
   wkThreads <- option auto (long "threads" <> short 't' <> value (wkThreads defaultGlobalConf) <> metavar "NTHREADS" <> help "Number of parser threads to spawn (line-mode only)")
-  gateLimit <- option auto (long "width" <> short 'w' <> value (gateLimit defaultGlobalConf) <> metavar "GATESIZE" <> help "Maximum number of items to queue during input gating (gated only)")
   workLimit <- option auto (long "breadth" <> short 'b' <> value (workLimit defaultGlobalConf) <> metavar "WORKSIZE" <> help "Maximum number of batches to queue in work pipeline")
   return GlobalConf{..}
 

@@ -28,12 +28,11 @@ type IsZipped = Bool
 --
 -- Allows generation of a 'BS.ByteStream' to be handled in a separate thread
 -- from input processing in order to isolate throughput bottlenecks.
-produce :: (Int -> ChanBounded B.ByteString -> IO (BS.ByteStream IO ()))
+produce :: (Int -> BoundedChan B.ByteString -> IO (BS.ByteStream IO ()))
         -> ReaderT GlobalConf IO (BS.ByteStream IO ())
 produce mf = do
-  uBound_gate <- asks gateLimit
   uBound_work <- asks workLimit
-  lift $ newChanBounded uBound_work >>= mf uBound_gate
+  lift $ newBoundedChan uBound_work >>= mf uBound_work
 
 -- | Generates a monadic 'BS.ByteString' in the 'IO' monad from different types of input source
 -- and format.
@@ -57,8 +56,8 @@ generate False zipped (Just !u) = produce $ \_ outgate -> do
 generate True  False  (Just !u) = produce $ \_ outgate -> do
   link =<< async (runResourceT $ writeBS outgate =<< getHttp u)
   return $ readBS outgate
-generate True  True   (Just !u) = produce $ \uBound_gate outgate -> do
-  gate  <- newChanBounded uBound_gate
+generate True  True   (Just !u) = produce $ \uBound_work outgate -> do
+  gate  <- newBoundedChan uBound_work
   link =<< async (runResourceT $ writeBS gate =<< getHttp u)
   link =<< async (writeBS outgate $ unzip $ readBS gate)
   return $ readBS outgate

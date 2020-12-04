@@ -70,13 +70,13 @@ putLnBuilderS = S.mapM_ putLnBuilder
 {-# INLINE putLnBuilderS #-}
 
 -- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
--- using the provided accumulation function, initial value, and finalization function.
+-- using the provided accumulation function, initial value, and extraction function.
 mapParses :: A.Parser (Maybe Builder) -- ^ Parser to be run
           -> (Builder -> x -> x) -- ^ Accumulation function
           -> x -- ^ Initial value of accumulator
           -> (x -> a) -- ^ Finalization function to run over final accumulator value
           -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteString'
-          -> IO a -- ^ Finalized result
+          -> IO a -- ^ Extracted result
 mapParses parser f z g src =
   let str = blockParseStream (A.parse parser) src
    in S.fold_ (flip f) z g $ str

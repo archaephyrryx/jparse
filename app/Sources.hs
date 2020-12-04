@@ -10,7 +10,7 @@ import qualified Streaming.Zip as Zip
 
 import qualified Streaming.ByteString as BS
 
-import JParse.Helper
+import Util.Helper
 
 -- * Unprocessed sources
 

@@ -44,55 +44,69 @@ to be valid, the latter is preferable.
 
 -}
 module JParse.Attoparsec
-  ( module JParse.Attoparsec.Streaming
-  , putLnBuilderS
-  , mapParses
-  , runParses
-  , runParsed
+  ( blockParseStream
+  , blockParseFold
+  , blockParseFoldIO
   ) where
 
 
 import qualified Data.Attoparsec.ByteString as A
+import qualified Data.ByteString as B
 import qualified Streaming.Prelude as S
 
+import Control.Monad (join)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString.Builder (Builder)
 import Streaming (Stream, Of)
 
 import qualified Data.ByteString.Streaming.Compat as BS
 
-import JParse.Attoparsec.Streaming
-import JParse.Attoparsec.Common
+import JParse.Attoparsec.Internal (trim, parseS)
 
--- | Prints each 'D.Builder' in a 'Stream' to stdout with trailing newlines
-putLnBuilderS :: MonadIO m => Stream (Of Builder) m () -> m ()
-putLnBuilderS = S.mapM_ putLnBuilder
-{-# INLINE putLnBuilderS #-}
+-- | Run 'parseS' using a given parser over arbitrary upstream
+-- and return stream of unwrapped 'Just' results
+blockParseStream :: (MonadIO m, MonadFail m)
+                 => A.Parser (Maybe a) -- ^ parse function
+                 -> BS.ByteStream m () -- ^ input monadic bytestring
+                 -> Stream (Of a) m () -- ^ Stream of unwrapped @Just@ values
+blockParseStream parser = go
+  where
+    go mbs =
+      lift (BS.unconsChunk mbs) >>= \case
+        Right (!bs, rest) -> do
+          let !bs' = trim bs
+          if B.null bs'
+            then go rest
+            else do
+              src <- lift (BS.unconsChunk rest)
+              parseS src (A.parse parser) bs'
+        _ -> pure ()
+    {-# INLINABLE go #-}
+{-# INLINE blockParseStream #-}
 
 -- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
 -- using the provided accumulation function, initial value, and extraction function.
-mapParses :: A.Parser (Maybe Builder) -- ^ Parser to be run
-          -> (Builder -> x -> x) -- ^ Accumulation function
-          -> x -- ^ Initial value of accumulator
-          -> (x -> a) -- ^ Finalization function to run over final accumulator value
-          -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteString'
-          -> IO a -- ^ Extracted result
-mapParses parser f z g src =
-  let str = blockParseStream (A.parse parser) src
+blockParseFold :: A.Parser (Maybe a) -- ^ Parser to be run
+               -> (a -> x -> x) -- ^ Accumulation function
+               -> x -- ^ Initial value of accumulator
+               -> (x -> b) -- ^ Finalization function to run over final accumulator value
+               -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteStream'
+               -> IO b -- ^ Extracted result
+blockParseFold parser f z g src =
+  let str = blockParseStream parser src
    in S.fold_ (flip f) z g $ str
+{-# INLINE blockParseFold #-}
 
--- | Runs 'parseS' using a given parser over arbitrary upstream
--- and outputs the results using 'putLnBuilderS'
-runParses :: A.Parser (Maybe Builder)
-          -> BS.ByteStream IO ()
-          -> IO ()
-runParses parser src = putLnBuilderS $ blockParseStream (A.parse parser) src
-{-# INLINE runParses #-}
-
--- | Runs 'blockParsed' using a given parser over arbitrary upstream
--- and outputs the results using 'putLnBuilderS'
-runParsed :: A.Parser (Maybe Builder)
-          -> BS.ByteStream IO ()
-          -> IO ()
-runParsed parser src = putLnBuilderS $ blockParsed parser src
-{-# INLINE runParsed #-}
+-- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
+-- using the provided accumulation function, initial value, and extraction function.
+blockParseFoldIO :: A.Parser (Maybe a) -- ^ Parser to be run
+                 -> (a -> x -> x) -- ^ Accumulation function
+                 -> x -- ^ Initial value of accumulator
+                 -> (x -> IO b) -- ^ Finalization function to run over final accumulator value
+                 -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteStream'
+                 -> IO b -- ^ Extracted result
+blockParseFoldIO parser f z g src =
+  let str = blockParseStream parser src
+   in join $ S.fold_ (flip f) z g $ str
+{-# INLINE blockParseFoldIO #-}

@@ -118,7 +118,6 @@ _char ~(w,t) q
             _    -> fail
         _    -> fail
 
--- XXX: does _qquad deserve own bindings or should it capture h,l from scope ?
 -- | @Matcher@ that accepts all valid representations of UTF-16 surrogate pairs
 _surr :: DeconBS -> QuadPair -> Matcher
 _surr ~(w,t) (!h,!l)

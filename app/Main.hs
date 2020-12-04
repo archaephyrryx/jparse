@@ -9,6 +9,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Builder as D
 
 import Options.Applicative
+import System.IO (stdout)
 
 import Gates
 import JParse
@@ -33,7 +34,10 @@ main = do
     BlockMode -> blockParse query mbs
 
 blockParse :: String -> BS.ByteStream IO () -> IO ()
-blockParse = runParses . strToAtto'
+blockParse q mbs =
+  S.mapM_ putLnBuilder $ blockParseStream (strToAtto' q) mbs
+  where
+    putLnBuilder bld = D.hPutBuilder stdout (bld <> D.word8 0xa)
 {-# INLINE blockParse #-}
 
 {-

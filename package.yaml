@@ -50,6 +50,7 @@ library:
     - Data.ByteString.Streaming.Compat.Char8
     - Data.ByteString.Streaming.Compat.Internal
     - Data.ByteString.Streaming.Compat.Type
+    - JParse.Attoparsec.Internal
     - JParse.Internal
     - JParse.Zepto.Internal
     - Parse.ASCII.ByteLiterals
@@ -59,8 +60,8 @@ library:
     - Parse.JSON.Read.Attoparsec.Common
     - Parse.JSON.Read.Attoparsec.Exact
     - Parse.JSON.Read.Attoparsec.Fast
-    - Parse.JSON.Read.Zepto
     - Parse.JSON.Read.Internal
+    - Parse.JSON.Read.Zepto
     - Parse.Parser.Attoparsec
     - Util.ByteString.Seek
   ghc-options:

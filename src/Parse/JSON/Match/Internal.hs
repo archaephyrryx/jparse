@@ -10,8 +10,12 @@ License     : BSD-3
 Maintainer  : caufeminecraft+github@gmail.com
 
 Type definitions and internal logic for translating JSON-encoded strings into
--- sequences of canonical lex-tokens to be used as directives for parsing any valid
--- JSON-encoded byte-sequence that is to be considered a match against the given string.
+sequences of 'ParseClass' values; each 'ParseClass' is an abstract lexical token
+that allows for a canonical form of codepoints with multiple valid JSON-string 
+representations, and the sequence in question is used as a specific directive for
+parsing any valid JSON-encoded byte-sequence that is to be considered a match against
+the given string.
+
 -}
 module Parse.JSON.Match.Internal
   ( DeconBS

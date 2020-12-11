@@ -9,16 +9,21 @@ import qualified Data.Text.Encoding as T
 import           Data.ByteString (ByteString)
 import           Data.ByteString.Builder (Builder)
 
-import Parse
-import Parse.ASCII.Attoparsec
+import Parse.ASCII.ByteLiterals
 
-import qualified Parse.Parser.Attoparsec as A
-import qualified Parse.JSON.Read.Attoparsec.Fast as Fast
+import           Parse.ASCII.Attoparsec (symbol, token)
+import qualified Parse.ASCII.Zepto as Z (symbol, token)
 
-import qualified Parse.JSON.Match.Zepto as Zep
-import qualified Parse.JSON.Read.Zepto as Zep
-import qualified Parse.Parser.Zepto as Z
-import qualified Parse.ASCII.Zepto as Z
+import           Parse.JSON.Match.Internal (ParseClass, mapClass)
+import           Parse.JSON.Match.Attoparsec   (parseMatch, parseMatchFast)
+import qualified Parse.JSON.Match.Zepto as Zep (parseMatch)
+
+import           Parse.JSON.Read.Attoparsec.Exact        (parseToEndQ, skipRestObj, skipValue)
+import qualified Parse.JSON.Read.Attoparsec.Fast as Fast (parseToEndQ, skipRestObj, skipValue)
+import qualified Parse.JSON.Read.Zepto           as Zep  (parseToEndQ, skipRestObj, skipValue)
+
+import qualified Parse.Parser.Attoparsec as A (Parser, pop, word8)
+import qualified Parse.Parser.Zepto as Z      (Parser, pop, word8)
 
 -- | \"Block-Mode\" 'A.Parser' that attempts to return a 'Builder' consisting of the contents
 -- of the string-value associated with the first JSON key matching a query string.

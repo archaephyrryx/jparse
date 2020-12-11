@@ -3,17 +3,22 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+module Parse.JSON.Read.Attoparsec.Fast
+  ( parseToEndQ
+  , skipToEndQ
+  , skipRestObj
+  , skipValue
+  ) where
 
-module Parse.JSON.Read.Attoparsec.Fast where
+import qualified Data.ByteString.Builder as D
 
 import           Control.Monad (mzero, when)
-import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Char8 as A (isDigit_w8, isSpace_w8, skipSpace)
-import qualified Data.ByteString.Builder as D
 import           Data.ByteString.Builder (Builder)
 import           Data.Word (Word8)
 
-import           Parse.ASCII.Attoparsec
+import qualified Parse.Parser.Attoparsec as A
+
+import           Parse.ASCII.Attoparsec (symbol, token)
 import           Parse.ASCII.ByteLiterals
 import           Parse.JSON.Read.Internal
 import           Parse.JSON.Read.Attoparsec.Common
@@ -24,22 +29,25 @@ import           Parse.JSON.Read.Attoparsec.Common
 --   any other pre-consumed characters will be omitted from the parser result
 parseToEndQ :: A.Parser Builder
 parseToEndQ = parseQBuilder <* A.skipSpace
-    where
-        parseQBuilder :: A.Parser Builder
-        parseQBuilder = do
-           sim <- D.byteString <$> A.takeWhile isSimple
-           A.anyWord8 >>= \case
-              Quote  -> pure sim
-              _      -> do
-                e <- parseEscaped
-                ((sim <> e) <>) <$> parseQBuilder
+  where
+    parseQBuilder :: A.Parser Builder
+    parseQBuilder = do
+        sim <- D.byteString <$> A.takeWhile isSimple
+        A.pop >>= \case
+            Quote -> pure sim
+            _     -> do
+              e <- parseEscaped
+              ((sim <> e) <>) <$> parseQBuilder
 {-# INLINE parseToEndQ #-}
 
--- | skipToEndQ : efficiently skips the remainder of a JSON-formatted string
---   can be called partway into string parsing provided that no characters
---   are orphaned from associated preceding unescaped backslashes
---
---   does not check for EOF or invalid backslash escapes
+-- | Efficiently skips the remainder of a JSON-formatted string and any subsequent
+--   whitespace, provided that the opening double-quote has been consumed already.
+--  
+--   This parser may be called partway into the JSON-string as long as the first byte
+--   in the buffer isn't an escape sequence whose escaping backslash character was already
+--   consumed.
+--  
+--   Does not check for EOF, and accepts invalid escape-sequences following an unescaped backslash.
 skipToEndQ :: A.Parser ()
 skipToEndQ = skipQUnit >> A.skipSpace
   where
@@ -48,9 +56,9 @@ skipToEndQ = skipQUnit >> A.skipSpace
       where
         go = do
           A.skipWhile isSimple
-          A.anyWord8 >>= \case
-            Quote  -> pure ()
-            _      -> A.anyWord8 >> go
+          A.pop >>= \case
+              Quote  -> pure ()
+              _      -> A.pop >> go
     {-# INLINE skipQUnit #-}
 {-# INLINE skipToEndQ #-}
 
@@ -59,35 +67,33 @@ skipToEndQ = skipQUnit >> A.skipSpace
 --
 --   consumes leading word8 of value before calling type-specific parsers
 skipValue :: A.Parser ()
-skipValue =
-    A.anyWord8 >>= \case
-        Quote -> skipToEndQ       -- leading '"' implies string
-        Minus -> skipNumber True  -- numbers that begin in '-' must have at least one digit
-        LBracket -> skipArray
-        LBrace -> skipObject
-        Lit_n -> _null  *> A.skipSpace
-        Lit_t -> _true  *> A.skipSpace
-        Lit_f -> _false *> A.skipSpace
-        w | A.isDigit_w8 w -> skipNumber False
-        _  -> mzero
-    where
-        -- character sequence required for JSON literals (null, true, false)
-        -- is truncated at head and therefore less transparent than named constants
-        _null  = A.string "ull"
-        _true  = A.string "rue"
-        _false = A.string "alse"
-        {-# INLINE _null #-}
-        {-# INLINE _true #-}
-        {-# INLINE _false #-}
+skipValue = A.pop >>= \case
+      Quote -> skipToEndQ       -- leading '"' implies string
+      Minus -> skipNumber True  -- numbers that begin in '-' must have at least one digit
+      LBracket -> skipArray
+      LBrace -> skipObject
+      Lit_n -> _null  *> A.skipSpace
+      Lit_t -> _true  *> A.skipSpace
+      Lit_f -> _false *> A.skipSpace
+      w | isDigit w -> skipNumber False
+      _  -> mzero
+  where
+    -- byte-sequence length required for JSON literals (null, true, false)
+    _null  = A.skip 3 -- "ull"
+    _true  = A.skip 3 -- "rue"
+    _false = A.skip 4 -- "alse"
+    {-# INLINE _null #-}
+    {-# INLINE _true #-}
+    {-# INLINE _false #-}
 
--- | skipArray : skips over contents of JSON-formatted array value,
---               ignoring internal whitespace
+-- | skips over contents of JSON-formatted array value,
+--   ignoring internal whitespace
 skipArray :: A.Parser ()
 skipArray = do
     A.skipSpace
-    A.peekWord8 >>= \case
-        Just RBracket -> A.anyWord8 *> A.skipSpace
-        _   -> skipVals -- pattern-match does not distinguish between non-] character and EOF
+    A.peek >>= \case
+        Just RBracket -> A.pop *> A.skipSpace
+        _   -> skipVals -- does not distinguish between non-] and EOF
   where
     skipVals = do
         skipValue
@@ -96,11 +102,12 @@ skipArray = do
             RBracket -> pure ()
             _    -> mzero
 
--- | skipNumber : numbers contain no special characters and can be skipped
---   efficiently without validation.
+-- | Skips numbers by consuming until a terminal character is encountered
 skipNumber :: Bool -> A.Parser ()
 skipNumber wantDigit = do
-    when wantDigit $ A.skip A.isDigit_w8
+    when wantDigit $ A.pop >>= \case
+      w | isDigit w -> pure ()
+      _ -> mzero
     A.skipWhile nonTerminal
     A.skipSpace
   where
@@ -108,29 +115,27 @@ skipNumber wantDigit = do
     nonTerminal Comma = False
     nonTerminal RBracket = False
     nonTerminal RBrace = False
-    nonTerminal w = not $ A.isSpace_w8 w
+    nonTerminal w = not $ isSpace w
+    {-# INLINE nonTerminal #-}
 
 -- | Skip any trailing list of object keys and values and final close-brace
 -- starting at the initial comma.
---
 skipTail :: A.Parser ()
-skipTail = A.anyWord8 >>= \case
+skipTail = A.pop >>= \case
     Comma  -> A.skipSpace >> A.word8 Quote *> skipKeyVals
     RBrace -> pure ()
     _    -> mzero
 
--- | Starting just after the double-quote of the first key, Skip key-value
+-- | Starting just after the double-quote of the first key, skip key-value
 -- pairs to the end of the object, including final close-brace.
---
 skipKeyVals :: A.Parser ()
 skipKeyVals = do
     skipToEndQ >> symbol Colon >> skipValue
     skipTail
 
--- | Skip object including final close-brace and trailing whitespace.
---
+-- | Skip nested object, including terminal '}', as well as any trailing whitespace
 skipObject :: A.Parser ()
-skipObject = A.skipSpace >> A.anyWord8 >>= \case
+skipObject = A.skipSpace >> A.pop >>= \case
     RBrace -> A.skipSpace
     Quote  -> skipKeyVals >> A.skipSpace
     _    -> mzero
@@ -140,7 +145,7 @@ skipObject = A.skipSpace >> A.anyWord8 >>= \case
 skipRestObj :: A.Parser ()
 skipRestObj = do
     A.skipWhile $ not . isSpecial
-    A.anyWord8 >>= \case
+    A.pop >>= \case
         RBrace   -> pure ()
         Quote    -> skipToEndQ >> skipRestObj
         LBracket -> skipRestArr >> skipRestObj
@@ -151,26 +156,9 @@ skipRestObj = do
 skipRestArr :: A.Parser ()
 skipRestArr = do
     A.skipWhile $ not . isSpecial
-    A.anyWord8 >>= \case
+    A.pop >>= \case
         RBracket -> pure ()
         Quote    -> skipToEndQ >> skipRestArr
         LBracket -> skipRestArr >> skipRestArr
         LBrace   -> skipRestObj >> skipRestArr
         _    -> mzero
-
--- | generic fast-skip to matching terminal symbol
---
--- @skipQuick@ is less efficient than 'skipRestObj' or 'skipRestArr' for @]@ or @}@ (respectively).
--- Please use those functions instead of calling @skipQuick 0x5d@ or @skipQuick 0x7d@ (same for
--- calls using the synonyms 'RBrace' and 'RBracket').
-skipQuick :: Word8 -> A.Parser ()
-skipQuick end = do
-    A.skipWhile $ not . isSpecial
-    A.anyWord8 >>= \w ->
-        if w == end
-        then pure ()
-        else case w of
-            Quote    -> skipToEndQ >> skipQuick end
-            LBracket -> skipQuick RBracket >> skipQuick end
-            LBrace   -> skipQuick RBrace >> skipQuick end
-            _    -> mzero

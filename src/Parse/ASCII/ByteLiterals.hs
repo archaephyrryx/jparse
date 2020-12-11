@@ -7,7 +7,9 @@ Copyright   : (c) Peter Duchovni, 2020
 License     : BSD-3
 Maintainer  : caufeminecraft+github@gmail.com
 
-This module consists of 
+This module consists of pattern synonyms for various ASCII 'Word8' literals
+that are used in place of \"magic numbers\" in the definitions of combinators
+that perform tasks associated with JSON-object parsing within this library.
 
 -}
 module Parse.ASCII.ByteLiterals
@@ -35,90 +37,90 @@ import           Data.Word (Word8)
 
 -- ** Patterns for special parse-interrupt characters
 
--- | ASCII '\\'
+-- | ASCII @\\@
 pattern Bslash :: Word8
 pattern Bslash = 0x5c
 
--- | ASCII '"'
+-- | ASCII @"@
 pattern Quote :: Word8
 pattern Quote = 0x22
 
--- | ASCII '-'
+-- | ASCII @-@
 pattern Minus :: Word8
 pattern Minus = 0x2d
 
--- | ASCII ','
+-- | ASCII @,@
 pattern Comma :: Word8
 pattern Comma = 0x2c
 
--- | ASCII '.'
+-- | ASCII @.@
 pattern Period :: Word8
 pattern Period = 0x2e
 
--- | ASCII ':'
+-- | ASCII @:@
 pattern Colon :: Word8
 pattern Colon = 0x3a
 
 -- ** Patterns for escaped characters
 
--- | ASCII '/'
+-- | ASCII @/@
 pattern Slash :: Word8
 pattern Slash = 0x2F
 
--- | ASCII 'b'
+-- | ASCII @b@
 pattern Esc_b :: Word8
 pattern Esc_b = 0x62
 
--- | ASCII 'f'
+-- | ASCII @f@
 pattern Esc_f :: Word8
 pattern Esc_f = 0x66
 
--- | ASCII 'n'
+-- | ASCII @n@
 pattern Esc_n :: Word8
 pattern Esc_n = 0x6E
 
--- | ASCII 'r'
+-- | ASCII @r@
 pattern Esc_r :: Word8
 pattern Esc_r = 0x72
 
--- | ASCII 't'
+-- | ASCII @t@
 pattern Esc_t :: Word8
 pattern Esc_t = 0x74
 
 -- ** Patterns for control characters
 
--- | ASCII '\b'
+-- | ASCII @\b@
 pattern Ctr_b :: Word8
 pattern Ctr_b = 0x08
 
--- | ASCII '\f'
+-- | ASCII @\f@
 pattern Ctr_f :: Word8
 pattern Ctr_f = 0x0c
 
--- | ASCII '\n'
+-- | ASCII @\n@
 pattern Ctr_n :: Word8
 pattern Ctr_n = 0x0a
 
--- | ASCII '\r'
+-- | ASCII @\r@
 pattern Ctr_r :: Word8
 pattern Ctr_r = 0x0d
 
--- | ASCII '\t'
+-- | ASCII @\t@
 pattern Ctr_t :: Word8
 pattern Ctr_t = 0x09
 
 -- ** Patterns for delimiters
 
--- | ASCII '['
+-- | ASCII @[@
 pattern LBracket :: Word8
 pattern LBracket = 0x5b
--- | ASCII ']'
+-- | ASCII @]@
 pattern RBracket :: Word8
 pattern RBracket = 0x5d
--- | ASCII '{'
+-- | ASCII @{@
 pattern LBrace :: Word8
 pattern LBrace = 0x7b
--- | ASCII '}'
+-- | ASCII @}@
 pattern RBrace :: Word8
 pattern RBrace = 0x7d
 
@@ -135,28 +137,28 @@ pattern Lit_f = 0x66
 
 -- ** Patterns for hexadecimal quads
 
--- | Pattern for ASCII 'u'
+-- | Pattern for ASCII @u@
 pattern Hex_u :: Word8
 pattern Hex_u = 0x75
 
 -- *** Patterns for range bounds on ASCII characters that are valid hexadecimal digits
 
--- | ASCII '0'
+-- | ASCII @0@
 pattern Hex_0 :: Word8
 
--- | ASCII '9'
+-- | ASCII @9@
 pattern Hex_9 :: Word8
 
--- | ASCII 'A'
+-- | ASCII @A@
 pattern Hex_A :: Word8
 
--- | ASCII 'F'
+-- | ASCII @F@
 pattern Hex_F :: Word8
 
--- | ASCII 'a'
+-- | ASCII @a@
 pattern Hex_a :: Word8
 
--- | ASCII 'f'
+-- | ASCII @f@
 pattern Hex_f :: Word8
 
 pattern Hex_0 = 0x30

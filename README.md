@@ -19,7 +19,7 @@ Character Encoding
 ==================
 
 As JSON itself allows UTF-16 codepoints within the BMP range (including ASCII-range codepoints) to be represnted either directly as glyphs or as hexadecimal tetragraphs of the form `\u0000`--`\uffff` (case-insensitively), as well as UTF-16 Surrogate Pairs, comparing a **query-key** against an arbitrary key inside of each JSON object is not a byte-for-byte equality test. In order to support non-ASCII characters in *query-key*s, as well as indirect representations of ASCII-range codepoints even in
-ASCII-only JSON objects, each **query-key** is preemptively converted into a sequence of canonical code-point representations (specifically values of type `ParseClass` as defined in the library module [Parse.Match.Internal](/src/Parse/Match/Internal.hs)) that are either transparent in their possible representations in highly specific cases, or carry values indicating their alternative representations (i.e. as glyphs or as hexadecimal tetragraphs).
+ASCII-only JSON objects, each **query-key** is preemptively converted into a sequence of canonical code-point representations (specifically values of type `ParseClass` as defined in the library module [Parse.JSON.Match.Internal](/src/Parse/JSON/Match/Internal.hs)) that are either transparent in their possible representations in highly specific cases, or carry values indicating their alternative representations (i.e. as glyphs or as hexadecimal tetragraphs).
 
 The process of matching a given JSON key against this canonicalized **query-key** then consists of iteratively attempting to parse one of the byte-sequences that corresponds to a valid encoding of a canonicalized character, short-circuiting after the first failed attempt.
 
@@ -39,8 +39,8 @@ Library Usage
 
 In order to use this library for other applications, three key steps of a pipeline are important to highlight:
 
-1. Generation of an input streaming-bytestring ([Data.ByteString.Streaming.Gates](/src/Data/ByteString/Streaming/Gates.hs) and [Data.ByteString.Streaming.Sources](/src/Data/ByteString/Streaming/Sources.hs)
+1. Generation of an input `ByteStream` (cf. [Gates](/app/Gates.hs) and [Sources](/app/Sources.hs)
 2. Stream-parsing of the input ([JParse.Zepto](/src/JParse/Zepto.hs) or [JParse.Attoparsec](/src/JParse/Attoparsec.hs))
-3. (Optional) Post-processing stream output
+3. (Optional) Post-processing of stream output by user
 
-It is possible for users to provide their own streaming-bytestring as input, provided it is pre-processed sufficiently to be in raw JSON format. See documentation notes in the [Options](/app/Options.hs) module regarding input format and the appropriate stream-parser selection.
+It is required that users present a stream-parser with a `ByteStream` consisting of consecutive JSON objects optionally separated by whitespace (or newlines exclusively, for line-mode). See documentation notes in the [JParse](/src/JParse.hs) module regarding input format and the appropriate stream-parser selection.

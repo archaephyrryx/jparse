@@ -37,8 +37,8 @@ cond p f g x = if p x then f x else g x
 
 -- | Conditionally applies an endomorphism if a predicate value is 'True', or 'id' otherwise
 elseId :: Bool -> (a -> a) -> a -> a
-elseId True  f x = f x
-elseId _     _ x = x
+elseId True = ($)
+elseId _    = const id
 {-# INLINE elseId #-}
 
 -- | Apply a right-fold to values iteratively generated from an initial seed
@@ -56,10 +56,8 @@ refold g f z = go
 
 -- | 'mapM_' specialized for 'Maybe'
 --
--- While it is unclear exactly how this function compares performance-wise to 'mapM_',
--- the semantics are slightly more transparent
+-- While it is not strictly necessary to define this function, it offers more
+-- transparent semantics than inlining a call to @mapM_@ over the Maybe monad
 doJust :: Monad m => (a -> m b) -> Maybe a -> m ()
-doJust f (Just x) = void $ f x
-doJust _ _ = return ()
+doJust = mapM_
 {-# INLINE doJust #-}
-{-# SPECIALIZE INLINE doJust :: Monad m => (a -> m ()) -> Maybe a -> m () #-}

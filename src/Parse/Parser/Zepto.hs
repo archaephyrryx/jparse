@@ -11,7 +11,6 @@
 module Parse.Parser.Zepto
   ( Parser
   , Result(..)
-  , atEnd
   , parse
   , parseR
   , peek
@@ -269,10 +268,3 @@ peekAll = gets input
 popAll :: Parser ByteString
 popAll = gets input <* put (S B.empty)
 {-# INLINE popAll #-}
-
--- | Indicate whether the end of the input has been reached.
-atEnd :: Parser Bool
-atEnd = do
-  i <- gets input
-  pure $! B.null i
-{-# INLINE atEnd #-}

@@ -5,10 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-{-| Internal module that defines a data type 'ZEnv' containing
-    an input and output channel and a semaphore for monitoring
-    the activity of worker threads.
--}
+-- | Internal module for 'ZEnv' datatype used in "JParse.Zepto" functions
 module JParse.Zepto.Internal where
 
 import Control.Monad.Trans.Class (lift)

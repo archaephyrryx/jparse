@@ -15,28 +15,36 @@ Copyright   : (c) Peter Duchovni, 2020
 License     : BSD-3
 Maintainer  : caufeminecraft+github@gmail.com
 
-Line-Mode stream-parsers to be used when JSON input is strictly one-per-line
-and when the input lines are short enough to be reasonably read into memory.
+Line-Mode parallel stream-parsers to be used when JSON input is strictly one-per-line
+and when the input lines are short enough to be read into memory.
 
-The top-level functions 'lineParseStream', 'lineParseFold', and 'lineParseFoldIO' are stream-parsers
-that process JSON data (formatted appropriately for Line-Mode) obtained from a
-'BS.ByteStream', returning a 'Stream' of values, with 'lineParseFold'
-and its IO variant offering more robust control of post-processing. Each function performs its computations in parallel,
-processing \"batches\" of JSON data according to the provided parser, with optional fold-and-extract
-parameters.
-
-The parser-library these functions are implemented in terms of is "Parse.Parser.Zepto",
-which defines a set of efficient non-backtracking parser-combinators. In order to actually
-perform the desired bulk-extraction of values associated with a query key,
-the parser combinator to be passed in to any of these functions should be
+'lineParseStream' is the most basic of these, and returns a 'Stream' of parse-result
+batches of type @[a]@ for a parser of type @'Z.Parser' (Maybe a)@. While the function does
+not require a particular parser, in practice this should be
 
 @
 'JParse.Internal.strToZepto' (key :: String)
 @
 
-This parser sacrifices the majority of JSON validation in order to be
-as efficient as possible when processing valid JSON data, and may process
-malformed JSON as if it were valid.
+which is of type @'Z.Parser' (Maybe 'Data.ByteString.Builder.Builder')@.
+
+To perform additional post-processing of batched results within the parallel worker threads,
+'lineParseFold' (or its monadic variant 'lineParseFoldIO') should be used. These functions
+take a right-associative fold function, an initial accumulator value, and an extraction value
+that is run over the final accumulator result for each individual batch. In the case of 'lineParseFoldIO',
+the return type of the extraction function is a computation in the IO monad.
+
+An example use-case of 'lineParseFold' is the following:
+
+@
+example :: String -> 'BS.ByteStream' -> IO ()
+example queryKey jsonStream = 
+    'Streaming.Prelude.mapM_' 'Data.ByteString.Char8.putStr' $ 
+        lineParseFold defaultGlobalConf (strToZepto queryKey) concatLine mempty 'Util.ByteString.Build.buildLong' $ jsonStream
+
+concatLine :: 'Data.ByteString.Builder.Builder' -> 'Data.ByteString.Builder.Builder' -> 'Data.ByteString.Builder.Builder'
+concatLine bld rest = bld <> 'Data.ByteString.Builder.word8' 0xa <> rest
+@
 
 In order to obtain complete JSON objects, every
 literal newline character (@\\n@) in the input JSON stream is treated as an
@@ -67,7 +75,7 @@ import Util.Helper
 import Util.ByteString.Split (unconsLine)
 import Util.Streaming (lazyLineSplit)
 
--- | Parses a monadic bytestring that holds exactly one JSON object per line, returning a 'Stream' of
+-- | Parses a 'BS.ByteStream' that holds exactly one JSON object per line, returning a 'Stream' of
 -- lists of the successful parse results for each individual batch.
 lineParseStream :: GlobalConf -- ^ Set of global constants for behavior tuning
                 -> Z.Parser (Maybe a)-- ^ Parser to run over each line
@@ -76,9 +84,9 @@ lineParseStream :: GlobalConf -- ^ Set of global constants for behavior tuning
 lineParseStream conf parser mbs = parseLines conf parser $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseStream #-}
 
--- | Parses a monadic bytestring that holds exactly one JSON object per line,
--- returning a 'Stream' of values of specified accumulation and extraction
--- functions per-batch
+-- | Parses a 'BS.ByteStream' that holds exactly one JSON object per line,
+-- returning a 'Stream' of values computed according to given accumulation and extraction
+-- functions per-batch.
 lineParseFold :: GlobalConf -- ^ Set of global constants for behavior tuning
               -> Z.Parser (Maybe a) -- ^ Parser to run over each line
               -> (a -> x -> x) -- ^ Accumulation function
@@ -89,8 +97,8 @@ lineParseFold :: GlobalConf -- ^ Set of global constants for behavior tuning
 lineParseFold conf parser f z g mbs = parseLinesFold conf parser f z g $ lazyLineSplit (batchSize conf) mbs
 {-# INLINE lineParseFold #-}
 
--- | Parses a monadic bytestring that holds exactly one JSON object per line,
--- returning a 'Stream' of values of specified accumulation and monadic extraction
+-- | Parses a 'BS.ByteStream' that holds exactly one JSON object per line,
+-- returning a 'Stream' of values computed according to given accumulation and monadic extraction
 -- functions per-batch. The accumulator value may also be monadic in certain cases.
 lineParseFoldIO :: GlobalConf -- ^ Set of global constants for behavior tuning
                 -> Z.Parser (Maybe a) -- ^ Parser to run over each line

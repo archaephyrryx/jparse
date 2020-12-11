@@ -25,8 +25,8 @@ of values.
 
 * "JParse.Attoparsec" defines high-level functions for applying a parser to a
 monadic 'Data.ByteString.Streaming.ByteString' containg a stream of JSON objects with more flexible
-formatting constraints, either returning the successful parse results as a
-Stream, or outputting them to stdout one-per-line
+formatting constraints, returning the successful parse results as a
+Stream or as a single value computed by folding over a Stream.
 
 
 == Line-mode ("JParse.Zepto") and Block-mode ("JParse.Attoparsec")
@@ -48,7 +48,9 @@ is nevertheless able to operate within.
 module JParse
   ( module JParse.Internal
   , module JParse.Attoparsec
+  , module JParse.Zepto
   ) where
 
 import JParse.Internal
 import JParse.Attoparsec
+import JParse.Zepto

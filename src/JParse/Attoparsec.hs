@@ -12,21 +12,15 @@ Copyright   : (c) Peter Duchovni, 2020
 License     : BSD-3
 Maintainer  : caufeminecraft+github@gmail.com
 
-This module provides \"Block-Mode\" stream-parsers to be used when JSON input
+\"Block-Mode\" stream-parsers to be used when JSON input
 is not strictly one-per-line (i.e. individual objects span multiple lines or
 multiple objects appear on the same line), or when the input lines may be too
 long to be reasonably read into memory.
 
-The top-level functions 'mapParses', 'runParses', and 'runParsed' are all \"drivers\" for
-stream-parsers, and perform IO computations rather than returning their output streams.
-In the case of 'mapParses', the computation is a fold-and-finalize operation specified
-by the caller, while 'runParses' and 'runParsed' both print the output of the result-'Streaming.Stream'
-to stdout.
-
-The parser-library these functions are implemented in terms of is "Parse.Parser.Attoparsec",
-which renames and re-exports a limited set of parser-combinators from the "Data.Attoparsec.ByteString"
-module. In order to actually perform the desired bulk-extraction of values associated with a query key,
-the parser combinator to be passed in to any of these functions should be one of
+'blockParseStream' is the most basic of these, and returns a stream of values
+corresponding to the output of the provided parser over a 'BS.ByteStream' containing
+a stream of JSON objects.
+For the purposes of this library, the parser used should be
 
 @
 'JParse.Internal.strToAtto' (key :: String)
@@ -38,9 +32,19 @@ or
 'JParse.Internal.strToAtto'' (key :: String)
 @
 
+where @key@ is the __query-key__ whose corresponding value is to be extracted per-object.
+
+
 The two top-level parser combinators suggested above respectively prioritize
 JSON validation over efficiency, and vice versa. If the JSON data is known
 to be valid, the latter is preferable.
+
+
+The functions 'blockParseFold' and 'blockParseFoldIO' are offered for convenience, and each
+perform a stream-fold over the output of 'blockParseStream', and each take a fold function,
+initial accumulator value, and extraction function to be run over the final result of the accumulator.
+In the case of 'blockParseFold', the extraction function returns a result in the IO monad.
+The parser parameter for these functions should be the same as for 'blockParseStream'.
 
 -}
 module JParse.Attoparsec
@@ -90,7 +94,7 @@ blockParseStream parser = go
 blockParseFold :: A.Parser (Maybe a) -- ^ Parser to be run
                -> (a -> x -> x) -- ^ Accumulation function
                -> x -- ^ Initial value of accumulator
-               -> (x -> b) -- ^ Finalization function to run over final accumulator value
+               -> (x -> b) -- ^ Extraction function to run over final accumulator value
                -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteStream'
                -> IO b -- ^ Extracted result
 blockParseFold parser f z g src =
@@ -99,11 +103,11 @@ blockParseFold parser f z g src =
 {-# INLINE blockParseFold #-}
 
 -- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
--- using the provided accumulation function, initial value, and extraction function.
+-- using the provided accumulation function, initial value, and monadic extraction function.
 blockParseFoldIO :: A.Parser (Maybe a) -- ^ Parser to be run
                  -> (a -> x -> x) -- ^ Accumulation function
                  -> x -- ^ Initial value of accumulator
-                 -> (x -> IO b) -- ^ Finalization function to run over final accumulator value
+                 -> (x -> IO b) -- ^ Monadic extraction function to run over final accumulator value
                  -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteStream'
                  -> IO b -- ^ Extracted result
 blockParseFoldIO parser f z g src =

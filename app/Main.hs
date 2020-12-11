@@ -40,12 +40,6 @@ blockParse q mbs =
     putLnBuilder bld = D.hPutBuilder stdout (bld <> D.word8 0xa)
 {-# INLINE blockParse #-}
 
-{-
-blockParse' :: String -> BS.ByteStream IO () -> IO ()
-blockParse' = runParsed . strToAtto'
-{-# INLINE blockParse' #-}
--}
-
 lineParse :: GlobalConf -> String -> BS.ByteStream IO () -> IO ()
 lineParse conf s mbs =
   S.mapM_ B8.putStr $

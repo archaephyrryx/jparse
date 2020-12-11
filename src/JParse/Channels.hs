@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase   #-}
 
+-- | Functions for reading and writing 'Stream's and 'BS.ByteStream's from and to 'BoundedChan's
 module JParse.Channels (
   feedChan,
   drainChan,

@@ -46,9 +46,8 @@ parseEscaped =
 -- | parses uXXXX hexcodes (without initial u)
 parseHex :: A.Parser ByteString
 parseHex = do
-  q <- A.take 4
-  if B.all isHexChar q
-     then pure q
-     else mzero
+    q <- A.take 4
+    if B.all isHexChar q
+      then pure q
+      else mzero
 {-# INLINE parseHex #-}
-

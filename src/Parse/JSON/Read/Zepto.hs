@@ -4,7 +4,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Parse.JSON.Read.Zepto where
+module Parse.JSON.Read.Zepto
+  ( parseToEndQ
+  , skipToEndQ
+  , skipRestObj
+  , skipValue
+  ) where
 
 import           Control.Monad (mzero)
 import qualified Data.ByteString as B
@@ -49,21 +54,6 @@ parseToEndQ = parseQBuilder <* Z.skipSpace
 skipToEndQ :: Z.Parser ()
 skipToEndQ = Z.skipEndQuote >> Z.skipSpace
 {-# INLINE skipToEndQ #-}
-
-old_skipToEndQ :: Z.Parser ()
-old_skipToEndQ = skipQUnit >> Z.skipSpace
-  where
-    skipQUnit :: Z.Parser ()
-    skipQUnit = go
-      where
-        go = do
-          Z.skipWhile isSimple
-          Z.pop >>= \case
-            Quote  -> pure ()
-            _      -> Z.pop >> go
-    {-# INLINE skipQUnit #-}
-{-# INLINE old_skipToEndQ #-}
-
 
 -- XXX: SHOULD HANDLE BACKSLASH HERE OR IN CALLER
 -- | basic parser that interprets escaped characters (except backslash)

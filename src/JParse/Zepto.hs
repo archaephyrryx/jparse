@@ -38,8 +38,8 @@ An example use-case of 'lineParseFold' is the following:
 
 @
 example :: String -> 'BS.ByteStream' -> IO ()
-example queryKey jsonStream = 
-    'Streaming.Prelude.mapM_' 'Data.ByteString.Char8.putStr' $ 
+example queryKey jsonStream =
+    'Streaming.Prelude.mapM_' 'Data.ByteString.Char8.putStr' $
         lineParseFold defaultGlobalConf (strToZepto queryKey) concatLine mempty 'Util.ByteString.Build.buildLong' $ jsonStream
 
 concatLine :: 'Data.ByteString.Builder.Builder' -> 'Data.ByteString.Builder.Builder' -> 'Data.ByteString.Builder.Builder'
@@ -117,7 +117,7 @@ parseLines :: GlobalConf
            -> Stream (Of L.ByteString) IO ()
            -> Stream (Of [a]) IO ()
 parseLines conf z str = do
-  env@(ZEnv{..}) <- liftIO $ withConf conf newZEnv
+  env@ZEnv{..} <- liftIO $ withConf conf newZEnv
   liftIO $ do
     writeBatches input str
     dispatchZEnv env (labor output z)
@@ -135,7 +135,7 @@ parseLinesFold :: GlobalConf
                -> Stream (Of L.ByteString) IO ()
                -> Stream (Of b) IO ()
 parseLinesFold conf parser f z g str = do
-  env@(ZEnv{..})  <- liftIO $ withConf conf newZEnv
+  env@ZEnv{..}  <- liftIO $ withConf conf newZEnv
   liftIO $ do
     writeBatches input str
     dispatchZEnv env (laborFold output parser f z g)
@@ -152,7 +152,7 @@ parseLinesFoldIO :: GlobalConf
                  -> Stream (Of L.ByteString) IO ()
                  -> Stream (Of b) IO ()
 parseLinesFoldIO conf parser f z g str = do
-  env@(ZEnv{..}) <- liftIO $ withConf conf newZEnv
+  env@ZEnv{..} <- liftIO $ withConf conf newZEnv
   liftIO $ do
     writeBatches input str
     dispatchZEnv env (laborFoldIO output parser f z g)
@@ -160,11 +160,11 @@ parseLinesFoldIO conf parser f z g str = do
   drainChanMaybe output
 {-# INLINE parseLinesFoldIO #-}
 
--- | Function passed to 'dispatch' in 'parseLinesStream'
+-- | Function passed to 'dispatch' in 'lineParseStream'
 --
 -- Accumulates a list of unprocessed parse results,
 -- writing to the provided output channel when the list is non-empty.
-labor :: BoundedChan ([a])
+labor :: BoundedChan [a]
       -> Z.Parser (Maybe a)
       -> L.ByteString
       -> IO ()
@@ -173,7 +173,7 @@ labor output z lbs = do
   unless (null xs) $ writeChan output xs
 {-# INLINE labor #-}
 
--- | Function passed to 'dispatch' in 'parseLinesFold'
+-- | Function passed to 'dispatch' in 'lineParseFold'
 --
 -- Performs a right-associative fold over each parse result, extracting the value
 -- and writing it to the provided output channel.
@@ -185,10 +185,10 @@ laborFold :: BoundedChan (Maybe b)
 laborFold output parser f z g lbs = do
   let xs = refold unconsLine (accZeptoFold parser f) z lbs
       !ys = g xs
-  writeChan output $! Just ys
+  writeChan output (Just ys)
 {-# INLINE laborFold #-}
 
--- | Function passed to 'dispatch' in 'parseLinesFoldIO'
+-- | Function passed to 'dispatch' in 'lineParseFoldIO'
 --
 -- Performs a right-associative fold over each parse result, extracting the value in the IO monad
 -- and writing the pure result to the provided output channel.
@@ -200,7 +200,7 @@ laborFoldIO :: BoundedChan (Maybe b)
 laborFoldIO output parser f z g lbs = do
   let xs = refold unconsLine (accZeptoFold parser f) z lbs
   !ys <- g xs
-  writeChan output $! Just ys
+  writeChan output (Just ys)
 {-# INLINE laborFoldIO #-}
 
 -- | List-specific parse-result right-fold function

@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy as L
 -- a tuple of the contents before and after the newline byte (which is itself omitted).
 --
 -- If a bytestring @x@ contains no newline characters,
+--
 -- > unconsLine x = Just (x, L.empty)
 --
 -- prop> unconsLine L.empty = Nothing

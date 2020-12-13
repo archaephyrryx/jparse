@@ -34,11 +34,9 @@ dependencies:
 - attoparsec
 - bytestring
 - base16-bytestring
-- resourcet
 - stm
 - streaming
 - streaming-bytestring
-- streaming-utils
 - text
 - transformers
 - BoundedChan
@@ -53,7 +51,9 @@ library:
     - JParse.Attoparsec.Internal
     - JParse.Internal
     - JParse.Zepto.Internal
+    - Parse.ASCII.Attoparsec
     - Parse.ASCII.ByteLiterals
+    - Parse.ASCII.Zepto
     - Parse.JSON.Match.Attoparsec
     - Parse.JSON.Match.Internal
     - Parse.JSON.Match.Zepto
@@ -63,7 +63,11 @@ library:
     - Parse.JSON.Read.Internal
     - Parse.JSON.Read.Zepto
     - Parse.Parser.Attoparsec
+    - Parse.Parser.Zepto
     - Util.ByteString.Seek
+    - Util.ByteString.Split
+    - Util.Helper
+    - Util.Streaming
   ghc-options:
     - -O2
 #   - -fprof-auto
@@ -83,6 +87,8 @@ executables:
     dependencies:
     - jparse
     - optparse-applicative
+    - resourcet
+    - streaming-utils
 
 tests:
   jparse-test:

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dbd99f73100f1b59e5ecd7e7ebdeb8c5c4e7e300dee807b203aa3b386738abfc
+-- hash: 983f66eac56079f24f9b929e0083c1698c2b42936357af2638bed9d2fc31eccf
 
 name:           jparse
 version:        0.1.0.0
@@ -35,16 +35,10 @@ library
       JParse.Attoparsec
       JParse.Channels
       JParse.Global
+      JParse.Parser
       JParse.Pipeline
+      JParse.Util.Builder
       JParse.Zepto
-      Parse
-      Parse.ASCII.Attoparsec
-      Parse.ASCII.Zepto
-      Parse.Parser.Zepto
-      Util.ByteString.Build
-      Util.ByteString.Split
-      Util.Helper
-      Util.Streaming
   other-modules:
       Data.ByteString.Streaming.Compat
       Data.ByteString.Streaming.Compat.Char8
@@ -53,7 +47,9 @@ library
       JParse.Attoparsec.Internal
       JParse.Internal
       JParse.Zepto.Internal
+      Parse.ASCII.Attoparsec
       Parse.ASCII.ByteLiterals
+      Parse.ASCII.Zepto
       Parse.JSON.Match.Attoparsec
       Parse.JSON.Match.Internal
       Parse.JSON.Match.Zepto
@@ -63,7 +59,11 @@ library
       Parse.JSON.Read.Internal
       Parse.JSON.Read.Zepto
       Parse.Parser.Attoparsec
+      Parse.Parser.Zepto
       Util.ByteString.Seek
+      Util.ByteString.Split
+      Util.Helper
+      Util.Streaming
   hs-source-dirs:
       src
   ghc-options: -O2
@@ -76,11 +76,9 @@ library
     , base >=4.7 && <5
     , base16-bytestring
     , bytestring
-    , resourcet
     , stm
     , streaming
     , streaming-bytestring
-    , streaming-utils
     , text
     , transformers
   default-language: Haskell2010
@@ -131,11 +129,9 @@ test-suite jparse-test
     , bytestring
     , gauge
     , jparse
-    , resourcet
     , stm
     , streaming
     , streaming-bytestring
-    , streaming-utils
     , text
     , transformers
   default-language: Haskell2010

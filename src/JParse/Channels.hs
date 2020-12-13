@@ -9,7 +9,11 @@ module JParse.Channels (
   drainChanMaybe,
   writeBS,
   readBS,
-  module Control.Concurrent.BoundedChan
+  -- * "Control.Concurrent.BoundedChan" re-exports
+  BoundedChan,
+  newBoundedChan,
+  writeChan,
+  readChan
   )
 where
 

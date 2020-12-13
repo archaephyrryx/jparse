@@ -10,8 +10,6 @@ import qualified Streaming.Zip as Zip
 
 import qualified Streaming.ByteString as BS
 
-import Util.Helper
-
 -- * Unprocessed sources
 
 -- | Name-standardized alias for 'BS.stdin'
@@ -42,5 +40,5 @@ condUnzip :: MonadIO m
           => Bool -- ^ Indicates whether input is compressed (performs decompression if @True@)
           -> BS.ByteStream m () -- ^ Possibly compressed bytestring
           -> BS.ByteStream m () -- ^ Non-compressed bytestring
-condUnzip !b mbs = if_ b (Zip.gunzip mbs) mbs
+condUnzip !b = if b then Zip.gunzip else id
 {-# INLINE condUnzip #-}

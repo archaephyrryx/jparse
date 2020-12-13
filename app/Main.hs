@@ -12,11 +12,11 @@ import Options.Applicative
 import System.IO (stdout)
 
 import Gates
-import JParse
-import JParse.Zepto
-import JParse.Global
 import Options
-import Util.ByteString.Build
+
+import JParse
+import JParse.Global
+import JParse.Util.Builder
 
 opts :: ParserInfo Options
 opts =

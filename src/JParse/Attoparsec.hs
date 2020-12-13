@@ -40,17 +40,17 @@ JSON validation over efficiency, and vice versa. If the JSON data is known
 to be valid, the latter is preferable.
 
 
-The functions 'blockParseFold' and 'blockParseFoldIO' are offered for convenience, and each
+The functions 'blockParseFold' and 'blockParseFoldM' are offered for convenience, and each
 perform a stream-fold over the output of 'blockParseStream', and each take a fold function,
 initial accumulator value, and extraction function to be run over the final result of the accumulator.
-In the case of 'blockParseFold', the extraction function returns a result in the IO monad.
-The parser parameter for these functions should be the same as for 'blockParseStream'.
+In the case of 'blockParseFoldM', the extraction function returns a result in the internal monad of the
+input 'BS.ByteStream'. The parser parameter for these functions should be the same as for 'blockParseStream'.
 
 -}
 module JParse.Attoparsec
   ( blockParseStream
   , blockParseFold
-  , blockParseFoldIO
+  , blockParseFoldM
   ) where
 
 
@@ -68,9 +68,8 @@ import qualified Data.ByteString.Streaming.Compat as BS
 
 import JParse.Attoparsec.Internal (trim, parseS)
 
--- | Run 'parseS' using a given parser over arbitrary upstream
--- and return stream of unwrapped 'Just' results
-blockParseStream :: (MonadIO m, MonadFail m)
+-- | Iteratively extract values from a 'BS.ByteStream' using a given parser, returning stream of unwrapped 'Just' values
+blockParseStream :: MonadFail m
                  => A.Parser (Maybe a) -- ^ parse function
                  -> BS.ByteStream m () -- ^ input monadic bytestring
                  -> Stream (Of a) m () -- ^ Stream of unwrapped @Just@ values
@@ -91,12 +90,13 @@ blockParseStream parser = go
 
 -- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
 -- using the provided accumulation function, initial value, and extraction function.
-blockParseFold :: A.Parser (Maybe a) -- ^ Parser to be run
+blockParseFold :: MonadFail m
+               => A.Parser (Maybe a) -- ^ Parser to be run
                -> (a -> x -> x) -- ^ Accumulation function
                -> x -- ^ Initial value of accumulator
                -> (x -> b) -- ^ Extraction function to run over final accumulator value
-               -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteStream'
-               -> IO b -- ^ Extracted result
+               -> BS.ByteStream m () -- ^ Input monadic 'BS.ByteStream'
+               -> m b -- ^ Extracted result
 blockParseFold parser f z g src =
   let str = blockParseStream parser src
    in S.fold_ (flip f) z g $ str
@@ -104,13 +104,14 @@ blockParseFold parser f z g src =
 
 -- | Computes a right-associative 'S.fold_' over the 'Stream' returned by 'blockParseStream'
 -- using the provided accumulation function, initial value, and monadic extraction function.
-blockParseFoldIO :: A.Parser (Maybe a) -- ^ Parser to be run
-                 -> (a -> x -> x) -- ^ Accumulation function
-                 -> x -- ^ Initial value of accumulator
-                 -> (x -> IO b) -- ^ Monadic extraction function to run over final accumulator value
-                 -> BS.ByteStream IO () -- ^ Input monadic 'BS.ByteStream'
-                 -> IO b -- ^ Extracted result
-blockParseFoldIO parser f z g src =
+blockParseFoldM :: MonadFail m
+                => A.Parser (Maybe a) -- ^ Parser to be run
+                -> (a -> x -> x) -- ^ Accumulation function
+                -> x -- ^ Initial value of accumulator
+                -> (x -> m b) -- ^ Monadic extraction function to run over final accumulator value
+                -> BS.ByteStream m () -- ^ Input monadic 'BS.ByteStream'
+                -> m b -- ^ Extracted result
+blockParseFoldM parser f z g src =
   let str = blockParseStream parser src
    in join $ S.fold_ (flip f) z g $ str
-{-# INLINE blockParseFoldIO #-}
+{-# INLINE blockParseFoldM #-}

@@ -5,7 +5,6 @@
 module JParse.Attoparsec.Internal (trim, parseS) where
 
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.Attoparsec.ByteString.Streaming as AS
 import qualified Data.ByteString as B
 import qualified Streaming.Prelude as S
 
@@ -33,7 +32,7 @@ trim !bs = B.dropWhile isSpaceWord8 bs
 -- Designed around 'strToAtto', which has the property that as soon as a positive or
 -- negative result has been decided for each JSON object encountered, the remainder of
 -- that JSON object is skipped.
-parseS :: (MonadIO m, MonadFail m)
+parseS :: MonadFail m
        => Either () (B.ByteString, BS.ByteStream m ()) -- ^ 'unconsChunk' of source 'BS.ByteStream'
        -> (B.ByteString -> A.Result (Maybe a)) -- ^ parser
        -> B.ByteString -- ^ initial chunk

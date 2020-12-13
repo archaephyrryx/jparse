@@ -13,26 +13,14 @@ to non-monadic ByteString output.
 
 module Util.Streaming where
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Streaming.Compat as BS
 import qualified Data.ByteString.Streaming.Compat.Char8 as BS8
 
+import           Data.ByteString.Lazy (ByteString)
 import           Streaming
 
--- | Convert a 'BS.ByteString' into a 'Stream' of (lazy) 'L.ByteString'
+-- | Convert a 'BS.ByteString' into a 'Stream' of lazy 'ByteString'
 -- containing batches of @n@ lines where @n@ is the value of the first argument
-lazyLineSplit :: MonadIO m => Int -> BS.ByteStream m () -> Stream (Of L.ByteString) m ()
+lazyLineSplit :: MonadIO m => Int -> BS.ByteStream m () -> Stream (Of ByteString) m ()
 lazyLineSplit !nLines = mappedPost BS.toLazy . BS8.lineSplit nLines
 {-# INLINE lazyLineSplit #-}
-
--- | Convert each 'BS.ByteStream' inside of a 'Stream' into a strict 'B.ByteString'
-toStricts :: Monad m => Stream (BS.ByteStream m) m r -> Stream (Of B.ByteString) m r
-toStricts = mappedPost _toStrict
-  where
-    _toStrict :: Monad m => BS.ByteStream m r -> m (Of B.ByteString r)
-    _toStrict mbs = do
-      (lbs :> ret) <- BS.toLazy mbs
-      return $! (L.toStrict lbs :> ret)
-    {-# INLINE _toStrict #-}
-{-# INLINE toStricts #-}
